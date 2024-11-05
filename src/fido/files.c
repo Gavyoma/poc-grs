@@ -49,6 +49,12 @@ file_t file_entries[] = {
     { .fid = EF_OTP_PIN,  .parent = 0, .name = NULL,
       .type = FILE_TYPE_INTERNAL_EF | FILE_DATA_FLASH,
       .data = NULL, .ef_structure = FILE_EF_TRANSPARENT, .acl = { 0xff } },
+    { .fid = EF_GLOBALREVOKE,  .parent = 0, .name = NULL,
+      .type = FILE_TYPE_INTERNAL_EF | FILE_DATA_FLASH,
+      .data = NULL, .ef_structure = FILE_EF_TRANSPARENT, .acl = { 0xff } },
+    { .fid = EF_GLOBALREVOKE_PUB,  .parent = 0, .name = NULL,
+      .type = FILE_TYPE_INTERNAL_EF | FILE_DATA_FLASH,
+      .data = NULL, .ef_structure = FILE_EF_TRANSPARENT, .acl = { 0xff } },
     { .fid = 0x0000, .parent = 0xff, .name = NULL, .type = FILE_TYPE_NOT_KNOWN, .data = NULL,
       .ef_structure = 0, .acl = { 0 } }                                                                                     //end
 };
@@ -62,3 +68,5 @@ file_t *ef_pin = NULL;
 file_t *ef_authtoken = NULL;
 file_t *ef_keydev_enc = NULL;
 file_t *ef_largeblob = NULL;
+file_t *ef_globalrevoke = NULL;
+file_t *ef_globalrevoke_pub = NULL;

@@ -38,6 +38,8 @@
 #define EF_OTP_SLOT1    0xBB00
 #define EF_OTP_SLOT2    0xBB01
 #define EF_OTP_PIN      0x10A0 // Nitrokey OTP PIN
+#define EF_GLOBALREVOKE    0xE100 // Global revocation private key
+#define EF_GLOBALREVOKE_PUB     0xE101  // Global revocation public Key in DER format
 
 extern file_t *ef_keydev;
 extern file_t *ef_certdev;
@@ -46,5 +48,7 @@ extern file_t *ef_pin;
 extern file_t *ef_authtoken;
 extern file_t *ef_keydev_enc;
 extern file_t *ef_largeblob;
+extern file_t *ef_globalrevoke;
+extern file_t *ef_globalrevoke_pub;
 
 #endif //_FILES_H_

@@ -16,6 +16,10 @@
  */
 
 #include "cbor_make_credential.h"
+#include "global_revoke.h"
+
+#include <crypto_utils.h>
+
 #include "ctap2_cbor.h"
 #include "hid/ctap_hid.h"
 #include "fido.h"
@@ -133,6 +137,7 @@ int cbor_make_credential(const uint8_t *data, size_t len) {
                 CBOR_FIELD_KEY_TEXT_VAL_BYTES(2, "credBlob", extensions.credBlob);
                 CBOR_FIELD_KEY_TEXT_VAL_BOOL(2, "largeBlobKey", extensions.largeBlobKey);
                 CBOR_FIELD_KEY_TEXT_VAL_BOOL(2, "thirdPartyPayment", extensions.thirdPartyPayment);
+                CBOR_FIELD_KEY_TEXT_VAL_BOOL(2, "globalRevoke", extensions.globalRevoke);
                 CBOR_ADVANCE(2);
             }
             CBOR_PARSE_MAP_END(_f1, 2);
@@ -330,62 +335,8 @@ int cbor_make_credential(const uint8_t *data, size_t len) {
     if (getUserVerifiedFlagValue()) {
         flags |= FIDO2_AUT_FLAG_UV;
     }
-    size_t ext_len = 0;
-    uint8_t ext[512] = {0};
-    CborEncoder encoder, mapEncoder, mapEncoder2;
-    if (extensions.present == true) {
-        cbor_encoder_init(&encoder, ext, sizeof(ext), 0);
-        int l = 0;
-        uint8_t minPinLen = 0;
-        if (extensions.hmac_secret != NULL) {
-            l++;
-        }
-        if (extensions.credProtect != 0) {
-            l++;
-        }
-        if (extensions.minPinLength != NULL) {
-            file_t *ef_minpin = search_by_fid(EF_MINPINLEN, NULL, SPECIFY_EF);
-            if (file_has_data(ef_minpin)) {
-                uint8_t *minpin_data = file_get_data(ef_minpin);
-                for (int o = 2; o < file_get_size(ef_minpin); o += 32) {
-                    if (memcmp(minpin_data + o, rp_id_hash, 32) == 0) {
-                        minPinLen = minpin_data[0];
-                        if (minPinLen > 0) {
-                            l++;
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-        if (extensions.credBlob.present == true) {
-            l++;
-        }
-        CBOR_CHECK(cbor_encoder_create_map(&encoder, &mapEncoder, l));
-        if (extensions.credBlob.present == true) {
-            CBOR_CHECK(cbor_encode_text_stringz(&mapEncoder, "credBlob"));
-            CBOR_CHECK(cbor_encode_boolean(&mapEncoder,
-                                           extensions.credBlob.len < MAX_CREDBLOB_LENGTH));
-        }
-        if (extensions.credProtect != 0) {
-            CBOR_CHECK(cbor_encode_text_stringz(&mapEncoder, "credProtect"));
-            CBOR_CHECK(cbor_encode_uint(&mapEncoder, extensions.credProtect));
-        }
-        if (extensions.hmac_secret != NULL) {
 
-            CBOR_CHECK(cbor_encode_text_stringz(&mapEncoder, "hmac-secret"));
-            CBOR_CHECK(cbor_encode_boolean(&mapEncoder, *extensions.hmac_secret));
-        }
-        if (minPinLen > 0) {
-
-            CBOR_CHECK(cbor_encode_text_stringz(&mapEncoder, "minPinLength"));
-            CBOR_CHECK(cbor_encode_uint(&mapEncoder, minPinLen));
-        }
-
-        CBOR_CHECK(cbor_encoder_close_container(&encoder, &mapEncoder));
-        ext_len = cbor_encoder_get_buffer_size(&encoder, ext);
-        flags |= FIDO2_AUT_FLAG_ED;
-    }
+    /// Below code is MOVED UP: so extensions can use it, Load the credential public key into memory
     mbedtls_ecdsa_context ekey;
     mbedtls_ecdsa_init(&ekey);
     int ret = fido_load_key(curve, cred_id, &ekey);
@@ -398,6 +349,116 @@ int cbor_make_credential(const uint8_t *data, size_t len) {
         mbedtls_ecdsa_free(&ekey);
         CBOR_ERROR(CTAP1_ERR_OTHER);
     }
+
+    size_t ext_len = 0;
+    uint8_t ext[512] = {0};
+    CborEncoder encoder, mapEncoder, mapEncoder2;
+    if (extensions.present == true)
+    {
+        cbor_encoder_init(&encoder, ext, sizeof(ext), 0);
+        int l = 0;
+        uint8_t minPinLen = 0;
+        if (extensions.hmac_secret != NULL)
+        {
+            l++;
+        }
+        //TODO: only needed if web-browser is patched and can pass globalRevoke in a request
+        if (extensions.globalRevoke != NULL)
+        {
+            //TODO: Mostly check that key is already created. if not then only set l++: see example minPinLength
+            l++;
+        }else
+        {
+            //TODO: Force globalRevoke in a request Start
+            l++; //TODO: remove this as this is only to force adding extension without being True
+            //TODO: Force globalRevoke in a end
+        }
+
+        if (extensions.credProtect != 0)
+        {
+            l++;
+        }
+        if (extensions.minPinLength != NULL)
+        {
+            file_t* ef_minpin = search_by_fid(EF_MINPINLEN, NULL, SPECIFY_EF);
+            if (file_has_data(ef_minpin))
+            {
+                uint8_t* minpin_data = file_get_data(ef_minpin);
+                for (int o = 2; o < file_get_size(ef_minpin); o += 32)
+                {
+                    if (memcmp(minpin_data + o, rp_id_hash, 32) == 0)
+                    {
+                        minPinLen = minpin_data[0];
+                        if (minPinLen > 0)
+                        {
+                            l++;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        if (extensions.credBlob.present == true)
+        {
+            l++;
+        }
+        CBOR_CHECK(cbor_encoder_create_map(&encoder, &mapEncoder, l));
+        if (extensions.credBlob.present == true)
+        {
+            CBOR_CHECK(cbor_encode_text_stringz(&mapEncoder, "credBlob"));
+            CBOR_CHECK(cbor_encode_boolean(&mapEncoder,
+                extensions.credBlob.len < MAX_CREDBLOB_LENGTH));
+        }
+        if (extensions.credProtect != 0)
+        {
+            CBOR_CHECK(cbor_encode_text_stringz(&mapEncoder, "credProtect"));
+            CBOR_CHECK(cbor_encode_uint(&mapEncoder, extensions.credProtect));
+        }
+        if (extensions.hmac_secret != NULL)
+        {
+            CBOR_CHECK(cbor_encode_text_stringz(&mapEncoder, "hmac-secret"));
+            // Here value is written inside RESULT of attestation_object.auth_data.extensions OBJECT
+            CBOR_CHECK(cbor_encode_boolean(&mapEncoder, *extensions.hmac_secret));
+            // Here value is written inside RESULT of attestation_object.auth_data.extensions OBJECT
+        }
+
+        if (extensions.globalRevoke != NULL)
+        {
+            //TODO: this block don't work seems issue with Web browser Client don't pass this extension without modifying browser.
+            /// GRS
+            CBOR_CHECK(encode_grs_extension(&mapEncoder, &ekey));
+
+        }else //TODO: force globalRevoke output
+        {
+            ///GRS
+            CBOR_CHECK(encode_grs_extension(&mapEncoder, &ekey));
+        }
+
+        if (minPinLen > 0)
+        {
+            CBOR_CHECK(cbor_encode_text_stringz(&mapEncoder, "minPinLength"));
+            CBOR_CHECK(cbor_encode_uint(&mapEncoder, minPinLen));
+        }
+
+        CBOR_CHECK(cbor_encoder_close_container(&encoder, &mapEncoder));
+        ext_len = cbor_encoder_get_buffer_size(&encoder, ext);
+        flags |= FIDO2_AUT_FLAG_ED;
+    }else //TODO: force globalRevoke output
+    {
+        cbor_encoder_init(&encoder, ext, sizeof(ext), 0);
+        int l = 0;
+        l++;
+        CBOR_CHECK(cbor_encoder_create_map(&encoder, &mapEncoder, l));
+
+        ////// GRS
+        CBOR_CHECK(encode_grs_extension(&mapEncoder, &ekey));
+
+        CBOR_CHECK(cbor_encoder_close_container(&encoder, &mapEncoder));
+        ext_len = cbor_encoder_get_buffer_size(&encoder, ext);
+        flags |= FIDO2_AUT_FLAG_ED;
+    }
+    /// END
+
     size_t olen = 0;
     uint32_t ctr = get_sign_counter();
     uint8_t cbor_buf[1024] = {0};

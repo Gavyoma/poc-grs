@@ -34,6 +34,7 @@ typedef struct CredExtensions {
     CborByteString credBlob;
     const bool *largeBlobKey;
     const bool *thirdPartyPayment;
+    const bool *globalRevoke;
     bool present;
 } CredExtensions;
 

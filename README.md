@@ -1,3 +1,20 @@
+# Pico FIDO (Modified - GPLv3)
+
+This is a **modified version** of [pico-fido](https://github.com/polhenarejos/pico-fido)  
+based on commit `3ce8496faa31fd2ad723fc12ed3dd3d9456ca170`.
+
+**Changes made:**
+- Modified several existing files
+- Added new files with additional functionality
+
+This project remains licensed under the **GNU General Public License v3 (GPLv3)**.
+
+It includes code from [pico-keys-sdk](https://github.com/polhenarejos/pico-keys-sdk)  
+at commit `9f65a2cfa024b721a6b7c16863e00558ac1a6f88`, which is also licensed under GPLv3.  
+The original `LICENSE` file from pico-keys-sdk is kept inside the `pico-keys-sdk/` folder.
+
+---
+
 # Pico FIDO
 This project transforms your Raspberry Pi Pico into an integrated FIDO Passkey, functioning like a standard USB Passkey for authentication.
 
