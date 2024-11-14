@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2024-2025, Nirav Pistolwala
+ * All rights reserved.
+ *
+ * New features and modifications in this project are licensed under the same
+ * terms as the original code below.
+ *
+ */
 // Copyright (c) 2018, Yubico AB
 // All rights reserved.
 //
@@ -39,67 +47,41 @@ import com.yubico.fido.metadata.UnexpectedLegalHeader;
 import com.yubico.internal.util.CertificateParser;
 import com.yubico.internal.util.JacksonCodecs;
 import com.yubico.util.Either;
-import com.yubico.webauthn.AssertionResultV2;
-import com.yubico.webauthn.FinishAssertionOptions;
-import com.yubico.webauthn.FinishRegistrationOptions;
-import com.yubico.webauthn.RegisteredCredential;
-import com.yubico.webauthn.RegistrationResult;
-import com.yubico.webauthn.RelyingParty;
-import com.yubico.webauthn.RelyingPartyV2;
-import com.yubico.webauthn.StartAssertionOptions;
-import com.yubico.webauthn.StartRegistrationOptions;
+import com.yubico.webauthn.*;
 import com.yubico.webauthn.attestation.YubicoJsonMetadataService;
-import com.yubico.webauthn.data.AttestationConveyancePreference;
-import com.yubico.webauthn.data.AuthenticatorData;
-import com.yubico.webauthn.data.AuthenticatorSelectionCriteria;
-import com.yubico.webauthn.data.AuthenticatorTransport;
-import com.yubico.webauthn.data.ByteArray;
-import com.yubico.webauthn.data.RelyingPartyIdentity;
-import com.yubico.webauthn.data.ResidentKeyRequirement;
-import com.yubico.webauthn.data.UserIdentity;
+import com.yubico.webauthn.data.*;
 import com.yubico.webauthn.data.exception.Base64UrlException;
 import com.yubico.webauthn.exception.AssertionFailedException;
 import com.yubico.webauthn.exception.RegistrationFailedException;
-import demo.webauthn.data.AssertionRequestWrapper;
-import demo.webauthn.data.AssertionResponse;
-import demo.webauthn.data.CredentialRegistration;
-import demo.webauthn.data.RegistrationRequest;
-import demo.webauthn.data.RegistrationResponse;
+import demo.webauthn.data.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.Value;
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.IOException;
-import java.security.DigestException;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.security.SignatureException;
+import java.security.*;
 import java.security.cert.CertPathValidatorException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.time.Clock;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import lombok.AllArgsConstructor;
-import lombok.NonNull;
-import lombok.Value;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@Slf4j
 public class WebAuthnServer {
   private static final Logger logger = LoggerFactory.getLogger(WebAuthnServer.class);
   private static final SecureRandom random = new SecureRandom();
 
   private final Cache<ByteArray, AssertionRequestWrapper> assertRequestStorage;
   private final Cache<ByteArray, RegistrationRequest> registerRequestStorage;
+  @Getter
   private final InMemoryRegistrationStorage userStorage;
   private final SessionManager sessions = new SessionManager();
 
@@ -165,6 +147,7 @@ public class WebAuthnServer {
         newCache(),
         Config.getRpIdentity(),
         Config.getOrigins());
+//    startGrsLoop();
   }
 
   public WebAuthnServer(
@@ -423,11 +406,16 @@ public class WebAuthnServer {
 
   public Either<List<String>, AssertionRequestWrapper> startAuthentication(
       Optional<String> username) {
-    logger.trace("startAuthentication username: {}", username);
+    logger.debug("start Authentication for username: {}", username);
 
-    if (username.isPresent() && !userStorage.userExists(username.get())) {
+    if (username.isPresent()
+            && !userStorage.userExists(username.get())) {
       return Either.left(
           Collections.singletonList("The username \"" + username.get() + "\" is not registered."));
+    } else if (username.isPresent()
+            && userStorage.isGlobalRevocationKeyRevoked(username.get())) {
+      return Either.left(
+              Collections.singletonList("The username \"" + username.get() + "\" is not allowed to login, KEY IS REVOKED!!!"));
     } else {
       AssertionRequestWrapper request =
           new AssertionRequestWrapper(
@@ -588,6 +576,21 @@ public class WebAuthnServer {
 
   private CredentialRegistration addRegistration(
       UserIdentity userIdentity, Optional<String> nickname, RegistrationResult result) {
+    String globalRevocationV = null;
+    String globalRevocationW = null;
+    String globalRevocationC = null;
+    if (result.getAuthenticatorExtensionOutputs().isPresent()) {
+      AuthenticatorRegistrationExtensionOutputs authenticatorRegistrationExtensionOutputs = result.getAuthenticatorExtensionOutputs().get();
+      if (authenticatorRegistrationExtensionOutputs.getGlobalRevoke() != null) {
+        globalRevocationV = Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(authenticatorRegistrationExtensionOutputs.getGlobalRevoke().getV());
+        globalRevocationW = Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(authenticatorRegistrationExtensionOutputs.getGlobalRevoke().getW());
+        globalRevocationC = Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(authenticatorRegistrationExtensionOutputs.getGlobalRevoke().getC());
+      }
+
+    }
     return addRegistration(
         userIdentity,
         nickname,
@@ -598,7 +601,10 @@ public class WebAuthnServer {
             .signatureCount(result.getSignatureCount())
             .build(),
         result.getKeyId().getTransports().orElseGet(TreeSet::new),
-        metadataService.findEntries(result).stream().findAny());
+            metadataService.findEntries(result).stream().findAny(),
+            globalRevocationV,
+            globalRevocationW,
+            globalRevocationC);
   }
 
   private CredentialRegistration addRegistration(
@@ -606,7 +612,10 @@ public class WebAuthnServer {
       Optional<String> nickname,
       RegisteredCredential credential,
       SortedSet<AuthenticatorTransport> transports,
-      Optional<Object> attestationMetadata) {
+      Optional<Object> attestationMetadata,
+      String globalRevocationV,
+      String globalRevocationW,
+      String globalRevocationC) {
     CredentialRegistration reg =
         CredentialRegistration.builder()
             .userIdentity(userIdentity)
@@ -615,6 +624,9 @@ public class WebAuthnServer {
             .credential(credential)
             .transports(transports)
             .attestationMetadata(attestationMetadata)
+                .globalRevocationV(globalRevocationV)
+                .globalRevocationW(globalRevocationW)
+                .globalRevocationC(globalRevocationC)
             .build();
 
     logger.debug(
@@ -663,4 +675,5 @@ public class WebAuthnServer {
       gen.writeEndObject();
     }
   }
+
 }

@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2024-2025, Nirav Pistolwala
+ * All rights reserved.
+ *
+ * This source code is licensed under the same terms as the rest of the
+ * original project, found in the COPYING file in the root directory.
+ */
 package com.yubico.webauthn.data;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -572,6 +579,62 @@ public class Extensions {
       }
 
       return true;
+    }
+  }
+
+  @Value
+  public static class GlobalRevocation {
+
+    public static final String EXTENSION_ID = "globalRevoke";
+
+    private final int vAlg;
+    private final byte[] v;
+    private final int wAlg;
+    private final byte[] w;
+    private final int cAlg;
+    private final byte[] c;
+
+    public GlobalRevocation(
+            @JsonProperty("vAlg") int vAlg,
+            @JsonProperty("v") byte[] v,
+            @JsonProperty("wAlg") int wAlg,
+            @JsonProperty("w") byte[] w,
+            @JsonProperty("cAlg") int cAlg,
+            @JsonProperty("c") byte[] c
+    ) {
+      this.v = v;
+      this.vAlg = vAlg;
+      this.w = w;
+      this.wAlg = wAlg;
+      this.c = c;
+      this.cAlg = cAlg;
+    }
+
+    static Optional<GlobalRevocation> parseAuthenticatorExtensionOutput(CBORObject extensionsMap) {
+      if (extensionsMap == null || !extensionsMap.ContainsKey(EXTENSION_ID)) {
+        return Optional.empty();
+      }
+
+      CBORObject myTestNode = extensionsMap.get(EXTENSION_ID);
+
+      if (myTestNode.getType() != CBORType.Map) {
+        return Optional.empty();
+      }
+
+      try {
+        return Optional.of(
+                new GlobalRevocation(
+                        myTestNode.get("vAlg").AsInt32Value(),
+                        myTestNode.get("v").GetByteString(),
+                        myTestNode.get("wAlg").AsInt32Value(),
+                        myTestNode.get("w").GetByteString(),
+                        myTestNode.get("cAlg").AsInt32Value(),
+                        myTestNode.get("c").GetByteString()
+                )
+        );
+      } catch (Exception e) {
+        return Optional.empty();
+      }
     }
   }
 }

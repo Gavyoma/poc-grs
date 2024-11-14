@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2024-2025, Nirav Pistolwala
+ * All rights reserved.
+ *
+ * New features and modifications in this project are licensed under the same
+ * terms as the original code below.
+ *
+ */
 // Copyright (c) 2018, Yubico AB
 // All rights reserved.
 //
@@ -41,7 +49,7 @@ public class Config {
   private static final String DEFAULT_ORIGIN = "https://localhost:8443";
   private static final int DEFAULT_PORT = 8443;
   private static final RelyingPartyIdentity DEFAULT_RP_ID =
-      RelyingPartyIdentity.builder().id("localhost").name("Yubico WebAuthn demo").build();
+          RelyingPartyIdentity.builder().id("localhost").name("Global revocation demo").build();
 
   private final Set<String> origins;
   private final int port;

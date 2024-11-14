@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2024-2025, Nirav Pistolwala
+ * All rights reserved.
+ *
+ * New features and modifications in this project are licensed under the same
+ * terms as the original code below.
+ *
+ */
 // Copyright (c) 2018, Yubico AB
 // All rights reserved.
 //
@@ -29,6 +37,7 @@ import com.google.common.cache.CacheBuilder;
 import com.yubico.webauthn.AssertionResultV2;
 import com.yubico.webauthn.CredentialRepositoryV2;
 import com.yubico.webauthn.UsernameRepository;
+import com.yubico.webauthn.data.AuthenticatorTransport;
 import com.yubico.webauthn.data.ByteArray;
 import demo.webauthn.data.CredentialRegistration;
 import java.util.Collection;
@@ -36,12 +45,26 @@ import java.util.HashSet;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.SortedSet;
+
+import demo.webauthn.exception.RevocationInputException;
+import demo.webauthn.exception.RevocationOperationException;
+import demo.webauthn.grs.dto.RevocationWc;
+import demo.webauthn.grs.dto.RevocationWDash;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@Slf4j
 public class InMemoryRegistrationStorage
     implements CredentialRepositoryV2<CredentialRegistration>, UsernameRepository {
 
@@ -186,4 +209,124 @@ public class InMemoryRegistrationStorage
   public boolean userExists(String username) {
     return !getRegistrationsByUsername(username).isEmpty();
   }
+
+  public boolean isGlobalRevocationKeyRevoked(String username) {
+    boolean result = false;
+    Collection<CredentialRegistration> registrationsByUsername = getRegistrationsByUsername(username);
+    if (!registrationsByUsername.isEmpty()) {
+      result = registrationsByUsername.stream().findAny()
+              .map(CredentialRegistration::isGlobalRevocationKeyRevoked)
+              .orElseGet(() -> false);
+      logger.debug("Global revocation: user: {}, isKeyRevoked: {}", username, result);
+    }
+    return result;
+  }
+
+  public void checkAndRevokeKeys(List<RevocationWDash> wDashes) {
+    List<CredentialRegistration> foundKeysToBeRevoked = new ArrayList<>();
+    List<CredentialRegistration> existingRegistrations = storage.asMap().values().stream()
+            .flatMap(Collection::stream).collect(Collectors.toList());
+    try {
+      for (RevocationWDash wDash : wDashes) {
+        if (StringUtils.isNotBlank(wDash.getWDash())) {
+          for (CredentialRegistration existingRegistration : existingRegistrations) {
+            ByteArray credentialPublicKeyCoseKeyBytes = existingRegistration.getPublicKeyCose();
+            byte[] credentialPublicKeyRawEs256Bytes = CoseKeyExtractor.getRawUncompressedEs256Key(credentialPublicKeyCoseKeyBytes);
+            String credentialPublicKeyBase64UrlRawEs256Bytes = Base64.getUrlEncoder().withoutPadding().encodeToString(credentialPublicKeyRawEs256Bytes);
+            String vDash =
+                    hashTwoBase64UrlStrings(credentialPublicKeyBase64UrlRawEs256Bytes, wDash.getWDash());
+            if (StringUtils.compareIgnoreCase(existingRegistration.getGlobalRevocationV(), vDash) == 0) {
+              logger.debug("###################################################################");
+              logger.debug("✅ Credential revoked");
+              logger.debug("v: {}", existingRegistration.getGlobalRevocationV());
+              logger.debug("v': {}", vDash);
+              logger.debug("w': {}", wDash.getWDash());
+              logger.debug("###################################################################");
+              foundKeysToBeRevoked.add(existingRegistration);
+            } else {
+              logger.debug("###################################################################");
+              logger.debug("❌ Credential not revoked");
+              logger.debug("v: {}", existingRegistration.getGlobalRevocationV());
+              logger.debug("v': {}", vDash);
+              logger.debug("w': {}", wDash.getWDash());
+              logger.debug("###################################################################");
+            }
+          }
+        }
+      }
+
+      for (CredentialRegistration foundKey : foundKeysToBeRevoked) {
+        Set<CredentialRegistration> regs = storage.getIfPresent(foundKey.getUsername());
+        regs.remove(foundKey);
+        CredentialRegistration reg =
+                CredentialRegistration.builder()
+                        .userIdentity(foundKey.getUserIdentity())
+                        .credentialNickname(foundKey.getCredentialNickname())
+                        .registrationTime(foundKey.getRegistrationTime())
+                        .credential(foundKey.getCredential())
+                        .transports((SortedSet<AuthenticatorTransport>) foundKey.getTransports().orElse(null))
+                        .attestationMetadata(foundKey.getAttestationMetadata())
+                        .isGlobalRevocationKeyRevoked(true)
+                        .build();
+        regs.add(reg);
+        log.debug("User Credential revoked: {}", foundKey.getUsername());
+      }
+    }catch (IllegalArgumentException e) {
+      logger.debug("Invalid input format during revocation processing", e);
+      throw new RevocationInputException("Malformed COSE key or invalid parameter provided", e);
+    } catch (IllegalStateException | SecurityException e) {
+      logger.debug("Critical state or security violation during revocation", e);
+      throw new RevocationOperationException("Storage or security subsystem failed during revocation", e);
+    } catch (Exception e) {
+      logger.debug("Key revocation process failed unexpectedly: ", e);
+      throw new RevocationOperationException("Key revocation process failed unexpectedly", e);
+    }
+  }
+
+  public List<RevocationWc> getAllCredentialRegistrationsWC() {
+    return storage.asMap().values().stream()
+            .flatMap(Collection::stream)
+            .filter(e -> !e.isGlobalRevocationKeyRevoked())
+            .map(cred -> new RevocationWc(
+                    cred.getGlobalRevocationW(),
+                    cred.getGlobalRevocationC()
+            ))
+            .collect(Collectors.toList());
+  }
+
+  /**
+   * Decodes two Base64URL strings, concatenates them, and calculates the SHA-256 hash.
+   *
+   * @param base64Url1 The first Base64URL encoded string
+   * @param base64Url2 The second Base64URL encoded string
+   * @return The SHA-256 hash as a raw byte array
+   */
+  public static String hashTwoBase64UrlStrings(String base64Url1, String base64Url2) throws NoSuchAlgorithmException {
+
+    // getUrlDecoder() which safely handles strings with or without padding
+    Base64.Decoder decoder = Base64.getUrlDecoder();
+    byte[] bytes1 = decoder.decode(base64Url1);
+    byte[] bytes2 = decoder.decode(base64Url2);
+
+    byte[] combinedBytes = new byte[bytes1.length + bytes2.length];
+    System.arraycopy(bytes1, 0, combinedBytes, 0, bytes1.length);
+    System.arraycopy(bytes2, 0, combinedBytes, bytes1.length, bytes2.length);
+
+    MessageDigest digest = MessageDigest.getInstance("SHA-256");
+
+    byte[] result = digest.digest(combinedBytes);
+    return Base64.getUrlEncoder().withoutPadding().encodeToString(result);
+  }
+
+  /**
+   * Converts a byte array to an uppercase Hex string.
+   */
+  public static String bytesToHex(byte[] bytes) {
+    StringBuilder hexString = new StringBuilder();
+    for (byte b : bytes) {
+      hexString.append(String.format("%02X", b));
+    }
+    return hexString.toString();
+  }
+
 }

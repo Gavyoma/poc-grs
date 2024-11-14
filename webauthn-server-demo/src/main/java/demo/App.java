@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2024-2025, Nirav Pistolwala
+ * All rights reserved.
+ *
+ * New features and modifications in this project are licensed under the same
+ * terms as the original code below.
+ *
+ */
 // Copyright (c) 2018, Yubico AB
 // All rights reserved.
 //
@@ -24,47 +32,31 @@
 
 package demo;
 
-import com.yubico.fido.metadata.FidoMetadataDownloaderException;
-import com.yubico.fido.metadata.UnexpectedLegalHeader;
-import com.yubico.webauthn.data.exception.Base64UrlException;
-import com.yubico.webauthn.extension.appid.InvalidAppIdException;
 import demo.webauthn.WebAuthnRestResource;
-import java.io.IOException;
-import java.security.DigestException;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SignatureException;
-import java.security.cert.CertPathValidatorException;
-import java.security.cert.CertificateException;
-import java.util.Arrays;
+import demo.webauthn.WebAuthnServer;
+
+import javax.ws.rs.core.Application;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-import javax.ws.rs.core.Application;
 
 public class App extends Application {
+
+  private final Set<Class<?>> classes = new HashSet<>();
+  private final Set<Object> singletons = new HashSet<>();
+
+  public App(WebAuthnServer webAuthnServer) {
+    classes.add(WebAuthnRestResource.class);
+    singletons.add(new WebAuthnRestResource(webAuthnServer));
+  }
+
   @Override
   public Set<Class<?>> getClasses() {
-    return new HashSet<>(Arrays.asList(CorsFilter.class));
+    return new HashSet<>(Collections.singletonList(CorsFilter.class));
   }
 
   @Override
   public Set<Object> getSingletons() {
-    try {
-      return new HashSet<>(Arrays.asList(new WebAuthnRestResource()));
-    } catch (InvalidAppIdException
-        | CertificateException
-        | CertPathValidatorException
-        | InvalidAlgorithmParameterException
-        | Base64UrlException
-        | DigestException
-        | FidoMetadataDownloaderException
-        | UnexpectedLegalHeader
-        | IOException
-        | NoSuchAlgorithmException
-        | SignatureException
-        | InvalidKeyException e) {
-      throw new RuntimeException(e);
-    }
+    return singletons;
   }
 }

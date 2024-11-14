@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2024-2025, Nirav Pistolwala
+ * All rights reserved.
+ *
+ * New features and modifications in this project are licensed under the same
+ * terms as the original code below.
+ *
+ */
 // Copyright (c) 2018, Yubico AB
 // All rights reserved.
 //
@@ -44,6 +52,11 @@ import lombok.With;
 @Builder
 @With
 public class CredentialRegistration implements CredentialRecord {
+
+  String globalRevocationV;
+  String globalRevocationW;
+  String globalRevocationC;
+  boolean isGlobalRevocationKeyRevoked;
 
   UserIdentity userIdentity;
   Optional<String> credentialNickname;
@@ -97,4 +110,5 @@ public class CredentialRegistration implements CredentialRecord {
   public Optional<Boolean> isBackedUp() {
     return credential.isBackedUp();
   }
+
 }

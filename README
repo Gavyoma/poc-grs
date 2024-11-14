@@ -1,3 +1,21 @@
+== Important Notice: Modified / Forked Version
+
+This repository contains a **modified version** of the original project:
+
+**Original Project:** https://github.com/Yubico/java-webauthn-server
+**Developed by:** Yubico AB (with contributions from Google Inc.)
+
+**License:** BSD License
+This project contains code licensed under both **BSD 2-Clause** (Yubico AB) and **BSD 3-Clause** (Google Inc.).
+See the `COPYING` file for the full license texts.
+
+**This is not an official Yubico release.**
+For the official version, signed Maven artifacts (`com.yubico:webauthn-server-core`), and support, please use the original repository.
+
+### Modifications in this fork
+- add support for global revocation CTAP2 extension and global revocation server
+
+====================
 java-webauthn-server
 ====================
 :toc:

@@ -16,7 +16,7 @@ dependencies {
   api(platform(rootProject))
 
   implementation(project(":yubico-util"))
-  implementation("com.fasterxml.jackson.core:jackson-databind")
+  implementation("com.fasterxml.jackson.core:jackson-databind:2.17.3")
   implementation("com.google.guava:guava")
   implementation("com.upokecenter:cbor")
   implementation("org.apache.httpcomponents.client5:httpclient5")

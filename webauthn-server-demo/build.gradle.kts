@@ -21,6 +21,11 @@ dependencies {
   implementation(project(":webauthn-server-core"))
   implementation(project(":yubico-util"))
 
+  implementation("com.squareup.okhttp3:okhttp:4.12.0")
+  implementation("com.google.code.gson:gson:2.11.0")
+  implementation("commons-io:commons-io:2.17.0")
+  implementation("org.apache.commons:commons-lang3:3.17.0")
+  
   implementation("com.fasterxml.jackson.core:jackson-databind")
   implementation("com.google.guava:guava")
   implementation("com.upokecenter:cbor")

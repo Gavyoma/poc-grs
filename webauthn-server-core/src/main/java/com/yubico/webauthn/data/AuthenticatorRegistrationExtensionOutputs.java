@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2024-2025, Nirav Pistolwala
+ * All rights reserved.
+ *
+ * New features and modifications in this project are licensed under the same
+ * terms as the original code below.
+ *
+ */
 // Copyright (c) 2018, Yubico AB
 // All rights reserved.
 //
@@ -62,11 +70,14 @@ public final class AuthenticatorRegistrationExtensionOutputs
     implements AuthenticatorExtensionOutputs {
 
   private final List<Extensions.Uvm.UvmEntry> uvm;
+  private final Extensions.GlobalRevocation globalRevoke;
 
   @JsonCreator
   private AuthenticatorRegistrationExtensionOutputs(
-      @JsonProperty("uvm") List<Extensions.Uvm.UvmEntry> uvm) {
+          @JsonProperty("uvm") List<Extensions.Uvm.UvmEntry> uvm,
+          Extensions.GlobalRevocation globalRevoke) {
     this.uvm = uvm == null ? null : CollectionUtil.immutableList(uvm);
+    this.globalRevoke = globalRevoke;
   }
 
   /**
@@ -101,6 +112,9 @@ public final class AuthenticatorRegistrationExtensionOutputs
    */
   public static Optional<AuthenticatorRegistrationExtensionOutputs> fromAuthenticatorData(
       AuthenticatorData authData) {
+    log.debug("#### AuthenticatorRegistrationExtensionOutputs: ####");
+    log.debug("fromAuthenticatorData: {}", authData.getExtensions());
+    log.debug("####################################################");
     return authData.getExtensions().flatMap(AuthenticatorRegistrationExtensionOutputs::fromCbor);
   }
 
@@ -108,6 +122,7 @@ public final class AuthenticatorRegistrationExtensionOutputs
     AuthenticatorRegistrationExtensionOutputsBuilder b = builder();
 
     Extensions.Uvm.parseAuthenticatorExtensionOutput(cbor).ifPresent(b::uvm);
+    Extensions.GlobalRevocation.parseAuthenticatorExtensionOutput(cbor).ifPresent(b::globalRevoke);
 
     AuthenticatorRegistrationExtensionOutputs result = b.build();
 
@@ -124,6 +139,9 @@ public final class AuthenticatorRegistrationExtensionOutputs
     HashSet<String> ids = new HashSet<>();
     if (uvm != null) {
       ids.add(Extensions.Uvm.EXTENSION_ID);
+    }
+    if (globalRevoke != null) {
+      ids.add(Extensions.GlobalRevocation.EXTENSION_ID);
     }
     return ids;
   }
