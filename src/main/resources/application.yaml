@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: "Global revocation server"
+  datasource:
+    url: jdbc:postgresql://localhost:5432/grs
+    username: grsuser
+    password: grssecret
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+server:
+  port: ${PORT_NUMBER:8085}
+
+app:
+  #  version: ${BUILD_NUMBER} // TODO:
+  version: 1.0
+
+logging:
+  level:
+    org.ncraft.grs: DEBUG

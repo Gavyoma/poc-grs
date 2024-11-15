@@ -1,0 +1,77 @@
+# ==========================================
+# Java / Compiled Files
+# ==========================================
+*.class
+*.log
+*.ctxt
+.mtj.tmp/
+hs_err_pid*
+replay_pid*
+
+# ==========================================
+# Gradle
+# ==========================================
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# ==========================================
+# IntelliJ IDEA
+# ==========================================
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# ==========================================
+# VS Code
+# ==========================================
+.vscode/
+
+# ==========================================
+# Operating System Files
+# ==========================================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# ==========================================
+# Spring Boot Specific
+# ==========================================
+# Local configuration files
+application-local.properties
+application-local.yml
+application-dev-local.yml
+
+# Environment files
+.env
+.env.*
+*.env
+
+# ==========================================
+# Logs and Temporary Files
+# ==========================================
+logs/
+tmp/
+temp/
+
+# ==========================================
+# Package Files
+# ==========================================
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# ==========================================
+# Misc
+# ==========================================
+*.swp
+*.swo
+*~

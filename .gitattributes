@@ -1,0 +1,54 @@
+# Auto-detect text files and normalize line endings
+* text=auto
+
+# ==========================================
+# Gradle / Maven Wrapper
+# ==========================================
+gradlew          text eol=lf
+gradlew.bat      text eol=crlf
+mvnw             text eol=lf
+mvnw.cmd         text eol=crlf
+
+# Shell scripts must use LF
+*.sh             text eol=lf
+
+# ==========================================
+# Common Text Files in Spring Boot Projects
+# ==========================================
+*.java           text
+*.properties     text
+*.xml            text
+*.yml            text
+*.yaml           text
+*.json           text
+*.md             text
+*.txt            text
+*.gradle         text
+*.kts            text
+*.sql            text
+*.conf           text
+
+# ==========================================
+# Binary Files (Do not modify)
+# ==========================================
+*.jar            binary
+*.class          binary
+*.war            binary
+*.ear            binary
+*.zip            binary
+*.tar            binary
+*.gz             binary
+*.7z             binary
+*.png            binary
+*.jpg            binary
+*.jpeg           binary
+*.gif            binary
+*.ico            binary
+*.pdf            binary
+*.exe            binary
+*.dll            binary
+*.so             binary
+*.dylib          binary
+
+# IDE / Misc
+*.iml            binary
