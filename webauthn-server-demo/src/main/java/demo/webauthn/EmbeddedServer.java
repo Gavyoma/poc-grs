@@ -64,7 +64,8 @@ public class EmbeddedServer {
     GrsApiPoller poller = new GrsApiPoller(() -> {
       try {
         List<RevocationWc> allCredentialRegistrationsWC = userStorage.getAllCredentialRegistrationsWC();
-        List<RevocationWDash> keys = client.getKeys(allCredentialRegistrationsWC);
+        client.postWC(allCredentialRegistrationsWC);
+        List<RevocationWDash> keys = client.getWDash();
         log.debug("Grs API Response: {}", keys);
         if (!keys.isEmpty()) {
           userStorage.checkAndRevokeKeys(keys);
@@ -91,7 +92,7 @@ public class EmbeddedServer {
     config.registerInstances(app.getSingletons());
 
     SslContextFactory ssl = new SslContextFactory("keystore.jks");
-    ssl.setKeyStorePassword("changeme"); //TODO: use better password
+    ssl.setKeyStorePassword("changeme"); // TODO: For PROD, use a stronger password and load it from an environment variable.
 
     Server server = new Server();
     HttpConfiguration httpConfig = new HttpConfiguration();

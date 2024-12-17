@@ -40,26 +40,18 @@ import com.yubico.webauthn.UsernameRepository;
 import com.yubico.webauthn.data.AuthenticatorTransport;
 import com.yubico.webauthn.data.ByteArray;
 import demo.webauthn.data.CredentialRegistration;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.NoSuchElementException;
-import java.util.Optional;
-import java.util.Set;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.SortedSet;
-
 import demo.webauthn.exception.RevocationInputException;
 import demo.webauthn.exception.RevocationOperationException;
-import demo.webauthn.grs.dto.RevocationWc;
 import demo.webauthn.grs.dto.RevocationWDash;
+import demo.webauthn.grs.dto.RevocationWc;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -225,7 +217,9 @@ public class InMemoryRegistrationStorage
   public void checkAndRevokeKeys(List<RevocationWDash> wDashes) {
     List<CredentialRegistration> foundKeysToBeRevoked = new ArrayList<>();
     List<CredentialRegistration> existingRegistrations = storage.asMap().values().stream()
-            .flatMap(Collection::stream).collect(Collectors.toList());
+            .flatMap(Collection::stream)
+            .filter(e -> !e.isGlobalRevocationKeyRevoked())
+            .collect(Collectors.toList());
     try {
       for (RevocationWDash wDash : wDashes) {
         if (StringUtils.isNotBlank(wDash.getWDash())) {
@@ -237,6 +231,7 @@ public class InMemoryRegistrationStorage
                     hashTwoBase64UrlStrings(credentialPublicKeyBase64UrlRawEs256Bytes, wDash.getWDash());
             if (StringUtils.compareIgnoreCase(existingRegistration.getGlobalRevocationV(), vDash) == 0) {
               logger.debug("###################################################################");
+              // TODO: DEMO ONLY: Emoji added for conference presentation. Remove emoji before production release.
               logger.debug("✅ Credential revoked");
               logger.debug("v: {}", existingRegistration.getGlobalRevocationV());
               logger.debug("v': {}", vDash);
@@ -245,6 +240,7 @@ public class InMemoryRegistrationStorage
               foundKeysToBeRevoked.add(existingRegistration);
             } else {
               logger.debug("###################################################################");
+              // TODO: DEMO ONLY: Emoji added for conference presentation. Remove emoji before production release.
               logger.debug("❌ Credential not revoked");
               logger.debug("v: {}", existingRegistration.getGlobalRevocationV());
               logger.debug("v': {}", vDash);
@@ -272,13 +268,10 @@ public class InMemoryRegistrationStorage
         log.debug("User Credential revoked: {}", foundKey.getUsername());
       }
     }catch (IllegalArgumentException e) {
-      logger.debug("Invalid input format during revocation processing", e);
       throw new RevocationInputException("Malformed COSE key or invalid parameter provided", e);
     } catch (IllegalStateException | SecurityException e) {
-      logger.debug("Critical state or security violation during revocation", e);
       throw new RevocationOperationException("Storage or security subsystem failed during revocation", e);
     } catch (Exception e) {
-      logger.debug("Key revocation process failed unexpectedly: ", e);
       throw new RevocationOperationException("Key revocation process failed unexpectedly", e);
     }
   }
@@ -303,7 +296,6 @@ public class InMemoryRegistrationStorage
    */
   public static String hashTwoBase64UrlStrings(String base64Url1, String base64Url2) throws NoSuchAlgorithmException {
 
-    // getUrlDecoder() which safely handles strings with or without padding
     Base64.Decoder decoder = Base64.getUrlDecoder();
     byte[] bytes1 = decoder.decode(base64Url1);
     byte[] bytes2 = decoder.decode(base64Url2);
@@ -318,15 +310,5 @@ public class InMemoryRegistrationStorage
     return Base64.getUrlEncoder().withoutPadding().encodeToString(result);
   }
 
-  /**
-   * Converts a byte array to an uppercase Hex string.
-   */
-  public static String bytesToHex(byte[] bytes) {
-    StringBuilder hexString = new StringBuilder();
-    for (byte b : bytes) {
-      hexString.append(String.format("%02X", b));
-    }
-    return hexString.toString();
-  }
 
 }

@@ -11,6 +11,8 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import demo.webauthn.grs.deserializer.RevocationKeyDeserializer;
+import demo.webauthn.grs.dto.PaginatedResponse;
+import demo.webauthn.grs.dto.RelyingPartyWebhookPayload;
 import demo.webauthn.grs.dto.RevocationWDash;
 import demo.webauthn.grs.dto.RevocationWc;
 import demo.webauthn.grs.exception.GrsApiException;
@@ -19,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import okhttp3.*;
 
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -39,9 +42,13 @@ public class GrsRestClient {
     private final OkHttpClient httpClient;
     private final Gson gson;
     private final String baseUrl;
+    private final String wDashEndPoint;
+    private final String webhookEndPoint;
 
     public GrsRestClient(String baseUrl) {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+        wDashEndPoint = this.baseUrl + "/api/v1/relying-party/wdash";
+        webhookEndPoint = this.baseUrl + "/api/v1/relying-party/webhooks/wcs";
 
         this.httpClient = new OkHttpClient.Builder()
                 .connectTimeout(10, TimeUnit.SECONDS)
@@ -54,14 +61,15 @@ public class GrsRestClient {
                 .create();
     }
 
-    public List<RevocationWDash> getKeys(List<RevocationWc> wcList) throws Exception {
-        String url = baseUrl + "/api/data";
-        Optional<String> responseBody = post(url, wcList);
+    public List<RevocationWDash> getWDash() throws Exception {
+        Optional<String> responseBody = get(wDashEndPoint);
         if (responseBody.isPresent()) {
             log.debug("Response: {}", responseBody);
             try {
-                return gson.fromJson(responseBody.get(), new TypeToken<List<RevocationWDash>>() {
-                }.getType());
+                Type type = new TypeToken<PaginatedResponse>() {
+                }.getType();
+                PaginatedResponse response = gson.fromJson(responseBody.get(), type);
+                return response.getData();
             } catch (com.google.gson.JsonSyntaxException e) {
                 throw new GrsApiException("Failed to parse JSON response", e);
             }
@@ -69,11 +77,22 @@ public class GrsRestClient {
         return Collections.emptyList();
     }
 
+    public void postWC(List<RevocationWc> wcList) throws Exception {
+        if (wcList == null || wcList.isEmpty()) {
+            return;
+        }
+        RelyingPartyWebhookPayload payload = new RelyingPartyWebhookPayload();
+        payload.setItems(wcList);
+        post(webhookEndPoint, payload);
+    }
+
     /**
      * Generic GET method
      */
-    public String get(String endpoint) throws IOException {
-        String url = baseUrl + endpoint;
+    public Optional<String> get(String url) throws IOException {
+        if (url == null || url.trim().isEmpty()) {
+            throw new IllegalArgumentException("URL cannot be null or empty");
+        }
 
         Request request = new Request.Builder()
                 .url(url)
@@ -82,9 +101,16 @@ public class GrsRestClient {
 
         try (Response response = httpClient.newCall(request).execute()) {
             if (!response.isSuccessful()) {
-                throw new IOException("HTTP error: " + response.code());
+                throw new HttpException(response.code(), response.message());
             }
-            return response.body().string();
+
+            ResponseBody responseBody = response.body();
+
+            if (responseBody == null) {
+                return Optional.empty();
+            }
+
+            return Optional.of(responseBody.string());
         }
     }
 
