@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
-package org.ncraft.grs;
+package org.ncraft.grs.wcprocessor.application;
 
-import org.springframework.boot.test.context.SpringBootTest;
+import java.util.UUID;
 
-//TODO: add more tests
-@SpringBootTest
-class DemoApplicationTests {
-
-
+public record UnprocessedPair(
+        UUID keyId,
+        String key,
+        UUID eventId,
+        String w,
+        String c
+) {
 }

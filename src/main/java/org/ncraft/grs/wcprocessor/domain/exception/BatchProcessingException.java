@@ -14,13 +14,11 @@
  * limitations under the License.
  */
 
-package org.ncraft.grs;
+package org.ncraft.grs.wcprocessor.domain.exception;
 
-import org.springframework.boot.test.context.SpringBootTest;
+public class BatchProcessingException extends RuntimeException {
 
-//TODO: add more tests
-@SpringBootTest
-class DemoApplicationTests {
-
-
+    public BatchProcessingException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

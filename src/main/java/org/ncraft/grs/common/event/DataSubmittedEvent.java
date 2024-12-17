@@ -14,13 +14,10 @@
  * limitations under the License.
  */
 
-package org.ncraft.grs;
+package org.ncraft.grs.common.event;
 
-import org.springframework.boot.test.context.SpringBootTest;
-
-//TODO: add more tests
-@SpringBootTest
-class DemoApplicationTests {
-
-
+/**
+ * Triggered when new raw data is persisted and ready for processing.
+ */
+public record DataSubmittedEvent(Object source, IntakeChannel domainType) {
 }

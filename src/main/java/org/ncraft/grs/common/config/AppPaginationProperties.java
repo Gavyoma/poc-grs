@@ -14,13 +14,18 @@
  * limitations under the License.
  */
 
-package org.ncraft.grs;
+package org.ncraft.grs.common.config;
 
-import org.springframework.boot.test.context.SpringBootTest;
+import jakarta.validation.constraints.NotBlank;
+import org.ncraft.grs.common.validation.ValidBase64;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
 
-//TODO: add more tests
-@SpringBootTest
-class DemoApplicationTests {
-
-
+@Validated
+@ConfigurationProperties(prefix = "app.pagination")
+public record AppPaginationProperties(
+        @NotBlank
+        @ValidBase64
+        String secretKeyV1
+) {
 }

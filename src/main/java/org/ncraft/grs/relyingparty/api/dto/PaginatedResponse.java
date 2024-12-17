@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-package org.ncraft.grs;
+package org.ncraft.grs.relyingparty.api.dto;
 
-import org.springframework.boot.test.context.SpringBootTest;
+import java.util.List;
 
-//TODO: add more tests
-@SpringBootTest
-class DemoApplicationTests {
-
-
+public record PaginatedResponse<T>(
+        List<T> data,
+        String nextCursor, // The encrypted UUIDv7
+        boolean hasMore
+) {
 }

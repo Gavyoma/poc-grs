@@ -14,13 +14,16 @@
  * limitations under the License.
  */
 
-package org.ncraft.grs;
+package org.ncraft.grs.common.config;
 
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DefaultValue;
+import org.springframework.validation.annotation.Validated;
 
-//TODO: add more tests
-@SpringBootTest
-class DemoApplicationTests {
-
-
+@Validated
+@ConfigurationProperties(prefix = "app.docs")
+public record AppDocsProperties(
+        @DefaultValue("")
+        String errorBaseUrl
+) {
 }

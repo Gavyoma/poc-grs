@@ -14,13 +14,10 @@
  * limitations under the License.
  */
 
-package org.ncraft.grs;
+package org.ncraft.grs.common.exception;
 
-import org.springframework.boot.test.context.SpringBootTest;
-
-//TODO: add more tests
-@SpringBootTest
-class DemoApplicationTests {
-
-
+public class EventPublishingException extends RuntimeException {
+    public EventPublishingException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

@@ -14,13 +14,17 @@
  * limitations under the License.
  */
 
-package org.ncraft.grs;
+package org.ncraft.grs.relyingparty.api.dto;
 
-import org.springframework.boot.test.context.SpringBootTest;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 
-//TODO: add more tests
-@SpringBootTest
-class DemoApplicationTests {
+import java.util.List;
 
+public record RelyingPartyWebhookPayload(
 
+        @NotEmpty(message = "The items list cannot be empty or null")
+        @Valid
+        List<RevocationWcDto> items
+) {
 }

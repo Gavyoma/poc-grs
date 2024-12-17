@@ -14,13 +14,19 @@
  * limitations under the License.
  */
 
-package org.ncraft.grs;
+package org.ncraft.grs.common.infrastructure.identifiers;
 
-import org.springframework.boot.test.context.SpringBootTest;
+import com.fasterxml.uuid.Generators;
+import com.fasterxml.uuid.NoArgGenerator;
+import org.springframework.stereotype.Component;
 
-//TODO: add more tests
-@SpringBootTest
-class DemoApplicationTests {
+import java.util.UUID;
 
+@Component
+public class UuidGenerator {
+    private final NoArgGenerator v7Generator = Generators.timeBasedEpochGenerator();
 
+    public UUID generateV7() {
+        return v7Generator.generate();
+    }
 }

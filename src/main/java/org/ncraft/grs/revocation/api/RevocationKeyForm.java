@@ -14,13 +14,19 @@
  * limitations under the License.
  */
 
-package org.ncraft.grs;
+package org.ncraft.grs.revocation.api;
 
-import org.springframework.boot.test.context.SpringBootTest;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import org.ncraft.grs.common.validation.ValidBase64;
+import org.ncraft.grs.common.validation.ValidRsaPublicKey;
 
-//TODO: add more tests
-@SpringBootTest
-class DemoApplicationTests {
+public record RevocationKeyForm(
 
-
+        @NotBlank(message = "Payload is required")
+        @Size(max = 736, message = "Payload exceeds maximum allowed length")
+        @ValidBase64(message = "The submitted data could not be decoded")
+        @ValidRsaPublicKey
+        String key
+) {
 }

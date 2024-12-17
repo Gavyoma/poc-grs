@@ -1,77 +1,86 @@
-# ==========================================
+# =========================
 # Java / Compiled Files
-# ==========================================
+# =========================
 *.class
-*.log
 *.ctxt
 .mtj.tmp/
 hs_err_pid*
 replay_pid*
 
-# ==========================================
+# =========================
 # Gradle
-# ==========================================
+# =========================
 .gradle/
 build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
 
-# ==========================================
+# =========================
+# Node.js / Tailwind CSS
+# =========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =========================
+# IDEs and Editors
+# =========================
 # IntelliJ IDEA
-# ==========================================
 .idea/
-*.iws
 *.iml
+*.iws
 *.ipr
 out/
 
-# ==========================================
 # VS Code
-# ==========================================
 .vscode/
 
-# ==========================================
-# Operating System Files
-# ==========================================
+# Eclipse
+.settings/
+.classpath
+.project
+
+# NetBeans
+nbproject/
+nbbuild/
+nbdist/
+nbactions.xml
+nb-configuration.xml
+
+# =========================
+# OS Generated Files
+# =========================
 .DS_Store
-Thumbs.db
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
 ehthumbs.db
+Thumbs.db
 
-# ==========================================
-# Spring Boot Specific
-# ==========================================
-# Local configuration files
-application-local.properties
-application-local.yml
-application-dev-local.yml
-
-# Environment files
-.env
-.env.*
-*.env
-
-# ==========================================
+# =========================
 # Logs and Temporary Files
-# ==========================================
-logs/
-tmp/
-temp/
-
-# ==========================================
-# Package Files
-# ==========================================
-*.jar
-*.war
-*.nar
-*.ear
-*.zip
-*.tar.gz
-*.rar
-
-# ==========================================
-# Misc
-# ==========================================
+# =========================
+*.log
+*.tmp
 *.swp
 *.swo
 *~
+
+# =========================
+# Environment / Secrets
+# =========================
+.env
+.env.local
+.env.*.local
+application-local.properties
+application-local.yml
+
+# =========================
+# Misc
+# =========================
+*.jar
+*.war
+*.ear

@@ -14,13 +14,17 @@
  * limitations under the License.
  */
 
-package org.ncraft.grs;
+package org.ncraft.grs.revocation.infrastructure;
 
-import org.springframework.boot.test.context.SpringBootTest;
+import org.ncraft.grs.revocation.domain.RevocationKey;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
-//TODO: add more tests
-@SpringBootTest
-class DemoApplicationTests {
+import java.util.UUID;
 
+@Repository
+public interface RevocationKeyRepository extends JpaRepository<RevocationKey, UUID> {
+
+    boolean existsByKey(String key);
 
 }

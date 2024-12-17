@@ -1,6 +1,6 @@
 spring:
   application:
-    name: "Global revocation server"
+    name: "@PROJECT_NAME@"
   datasource:
     url: jdbc:postgresql://localhost:5432/grs
     username: grsuser
@@ -8,12 +8,36 @@ spring:
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,info"
+
 server:
   port: ${PORT_NUMBER:8085}
+  error:
+    # Never show the stack trace in the HTML response
+    include-stacktrace: never
+    # Never include the internal exception message in the HTML response
+    include-message: never
+    # Never include binding/validation error internals
+    include-binding-errors: never
 
 app:
-  #  version: ${BUILD_NUMBER} // TODO:
-  version: 1.0
+  docs:
+    error-base-url: ${APP_DOCS_ERROR_BASE_URL:https://grs.ncraft.org/docs/errors/}
+  pagination:
+    # If the system environment variable is missing, it falls back to a dummy string
+    # Fallback is the Base64 encoded version of "dummyKeyExactly32BytesLong123456"
+    secret-key-v1: ${APP_PAGINATION_SECRET_KEY:ZHVtbXlLZXlFeGFjdGx5MzJCeXRlc0xvbmcxMjM0NTY}
+  processor:
+    # How many webhook events trigger an instant batch process
+    intake-threshold: 1
+    # How often the failsafe checks the database for missed records
+    # ISO-8601
+    sweep-delay: PT30S
+  rsa-key-size-bits: 1024   # Change to 2048 or 3072 in production
 
 logging:
   level:

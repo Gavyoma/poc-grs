@@ -14,13 +14,23 @@
  * limitations under the License.
  */
 
-package org.ncraft.grs;
+package org.ncraft.grs.common.config;
 
-import org.springframework.boot.test.context.SpringBootTest;
+import jakarta.validation.constraints.Min;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DefaultValue;
+import org.springframework.validation.annotation.Validated;
 
-//TODO: add more tests
-@SpringBootTest
-class DemoApplicationTests {
+import java.time.Duration;
 
+@Validated
+@ConfigurationProperties(prefix = "app.processor")
+public record AppProcessorProperties(
+        @Min(1)
+        @DefaultValue("30")
+        int intakeThreshold,
 
+        @DefaultValue("PT60M")
+        Duration sweepDelay
+) {
 }

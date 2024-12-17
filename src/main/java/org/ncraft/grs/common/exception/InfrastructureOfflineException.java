@@ -14,13 +14,11 @@
  * limitations under the License.
  */
 
-package org.ncraft.grs;
+package org.ncraft.grs.common.exception;
 
-import org.springframework.boot.test.context.SpringBootTest;
+public class InfrastructureOfflineException extends RuntimeException {
 
-//TODO: add more tests
-@SpringBootTest
-class DemoApplicationTests {
-
-
+    public InfrastructureOfflineException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

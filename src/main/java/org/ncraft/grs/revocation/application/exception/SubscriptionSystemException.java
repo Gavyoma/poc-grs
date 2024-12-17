@@ -14,13 +14,10 @@
  * limitations under the License.
  */
 
-package org.ncraft.grs;
+package org.ncraft.grs.revocation.application.exception;
 
-import org.springframework.boot.test.context.SpringBootTest;
-
-//TODO: add more tests
-@SpringBootTest
-class DemoApplicationTests {
-
-
+public class SubscriptionSystemException extends RuntimeException {
+    public SubscriptionSystemException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

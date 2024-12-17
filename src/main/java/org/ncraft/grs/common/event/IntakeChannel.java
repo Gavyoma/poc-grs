@@ -14,13 +14,9 @@
  * limitations under the License.
  */
 
-package org.ncraft.grs;
+package org.ncraft.grs.common.event;
 
-import org.springframework.boot.test.context.SpringBootTest;
-
-//TODO: add more tests
-@SpringBootTest
-class DemoApplicationTests {
-
-
+public enum IntakeChannel {
+    RELYING_PARTY_WEBHOOK,
+    REVOCATION_KEY_FORM,
 }

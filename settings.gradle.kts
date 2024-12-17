@@ -1,1 +1,1 @@
-rootProject.name = "grs"
+rootProject.name = "global-revocation-server"

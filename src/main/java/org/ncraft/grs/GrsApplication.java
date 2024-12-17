@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Nirav Pistolwala
+ * Copyright (c) 2024-2025, Nirav Pistolwala
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,32 +17,19 @@
 package org.ncraft.grs;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
+@EnableScheduling
+@ConfigurationPropertiesScan
 @Slf4j
-public class GrsApplication implements ApplicationRunner {
+public class GrsApplication {
 
-    @Value("${app.version}")
-    private String appVersion;
-
-    @Value("${spring.application.name}")
-    private String appName;
- 
     public static void main(String[] args) {
         SpringApplication.run(GrsApplication.class, args);
-    }
-
-    @Override
-    public void run(ApplicationArguments args) throws Exception {
-        log.info("===============================================");
-        log.info(" Application Name: {}", appName);
-        log.info(" Version Number: {}", appVersion);
-        log.info("===============================================");
     }
 
 }

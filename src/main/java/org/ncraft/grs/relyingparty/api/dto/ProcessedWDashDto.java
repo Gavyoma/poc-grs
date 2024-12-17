@@ -14,13 +14,17 @@
  * limitations under the License.
  */
 
-package org.ncraft.grs;
-
-import org.springframework.boot.test.context.SpringBootTest;
-
-//TODO: add more tests
-@SpringBootTest
-class DemoApplicationTests {
+package org.ncraft.grs.relyingparty.api.dto;
 
 
+import org.ncraft.grs.wcprocessor.domain.ProcessedEvents;
+
+public record ProcessedWDashDto(
+        String wDash
+) {
+    public static ProcessedWDashDto fromEntity(ProcessedEvents entity) {
+        return new ProcessedWDashDto(
+                entity.getWDash()
+        );
+    }
 }

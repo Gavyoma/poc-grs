@@ -14,13 +14,19 @@
  * limitations under the License.
  */
 
-package org.ncraft.grs;
+package org.ncraft.grs.relyingparty.api.dto;
 
-import org.springframework.boot.test.context.SpringBootTest;
+import jakarta.validation.constraints.NotBlank;
+import org.ncraft.grs.common.validation.ValidBase64;
 
-//TODO: add more tests
-@SpringBootTest
-class DemoApplicationTests {
+public record RevocationWcDto(
 
+        @NotBlank(message = "W is required")
+        @ValidBase64(isUrlSafe = true)
+        String w,
 
+        @NotBlank(message = "C is required")
+        @ValidBase64(isUrlSafe = true)
+        String c
+) {
 }
