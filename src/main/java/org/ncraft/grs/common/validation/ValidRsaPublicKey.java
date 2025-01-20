@@ -33,12 +33,12 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 @Retention(RUNTIME)
 public @interface ValidRsaPublicKey {
 
-    String message() default "Invalid RSA public key or RSA public key length";
+    String message() default "The provided RSA public key is invalid or has an incorrect bit length";
 
     Class<?>[] groups() default {};
 
     Class<? extends Payload>[] payload() default {};
-    
+
     int[] bitLengths() default {};
 
     boolean urlSafe() default false;

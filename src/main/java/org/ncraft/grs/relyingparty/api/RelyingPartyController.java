@@ -48,8 +48,8 @@ public class RelyingPartyController {
     private final UuidGenerator uuidGenerator;
 
     @Operation(
-            summary = "Get processed W' values",
-            description = "Retrieves a paginated list of processed W' values. Uses fast pagination via opaque cursors."
+            summary = "Fetch processed W' values",
+            description = "Retrieves a paginated collection of processed W' values. Uses an opaque cursor mechanism to optimize performance while preserving security and privacy."
     )
     @ApiResponses(value = {
             @ApiResponse(
@@ -94,8 +94,11 @@ public class RelyingPartyController {
 
     @Operation(
             summary = "Ingest Relying Party Webhooks",
-            description = "Receives Relying Party event payloads " +
-                    "This endpoint validates the request body and queues the event for asynchronous processing."
+            description = """
+                    Accepts one or more registration event payloads from Relying Parties. For each new FIDO2 authenticator registration, the payload includes the corresponding W and C values.
+                    
+                    This endpoint validates the request body and queues the event for asynchronous processing.
+                    """
     )
     @ApiResponses(value = {
             @ApiResponse(

@@ -26,11 +26,20 @@ import org.springframework.context.annotation.Configuration;
                 title = "GRS: Revocation Processing API",
                 version = "v1.0",
                 description = """
-                        API for handling Relying Party webhooks.
-                        ### Traceability & Error Handling
-                        A unique `X-Trace-Id` is attached to the HTTP Header of every single API response.
-                        In the event of a validation or server error, this exact same Trace ID will also be
-                        provided inside the JSON error body for convenience.
+                        ### Overview
+                        This API allows FIDO2 Relying Parties to submit and request information related to the Revocation of FIDO2 authenticators.
+                        
+                        ## Error Handling & Traceability
+                        
+                        This API uses standard HTTP status codes and returns [RFC 7807 Problem Details](https://datatracker.ietf.org/doc/html/rfc7807) for all error payloads.\s
+                        
+                        **Traceability**
+                        
+                        Every API response includes a unique `X-Trace-Id` in the HTTP headers. In the event of a 4xx or 5xx error, the JSON response body will include the standard RFC fields along with custom extensions for convenience:
+                        * `trace_id`: Matches the `X-Trace-Id` header to easily correlate logs.
+                        * `timestamp`: The exact UTC time the error occurred.\s
+                        
+                        *Note: Please provide the trace ID when contacting the support team.*
                         """
         )
 )
