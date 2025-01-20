@@ -35,36 +35,23 @@
 #include "mbedtls/base64.h"
 
 // ============================================================================
-// CONFIGURATION (Change this to 1024 or 2048 as needed)
+// HARDWARE TRUE RANDOM NUMBER GENERATOR (TRNG) ABSTRACTION LAYER
 // ============================================================================
-#define FIDO_RSA_BITS 1024
-#define FIDO_RSA_BYTES (FIDO_RSA_BITS / 8)
-#define KEM_AES_SIZE 32
-// ============================================================================
-// Calculate max raw size of your custom struct (N + D + P + Q + E)
-// For 1024-bit: 128 + 128 + 64 + 64 + 4 = 388 bytes
-#define RAW_STRUCT_BYTES ((FIDO_RSA_BYTES * 3) + 4)
-// Calculate the exact Base64 string size for your struct.
-// Base64 inflates data by 4/3. The "+ 2" handles C integer division rounding.
-// We add +15 as a safe padding margin (null terminators, struct alignment).
-#define MAX_BASE64_KEY_SIZE ((((RAW_STRUCT_BYTES) + 2) / 3) * 4 + 15)
-
-
-#define RN_SIZE 32 // RN Size
-#define AES_PAYLOAD_BUFFER_SIZE (RN_SIZE + 16) // The final buffer MUST be the Message Size + 16 bytes for the Nonce
-
-// A clean C structure to hold the raw RSA math parameters
-typedef struct {
-    uint8_t N[FIDO_RSA_BYTES];       // Modulus
-    uint8_t P[FIDO_RSA_BYTES / 2];   // Prime 1
-    uint8_t Q[FIDO_RSA_BYTES / 2];   // Prime 2
-    uint8_t D[FIDO_RSA_BYTES];       // Private Exponent
-    uint8_t E[4];                    // Public Exponent (Usually 65537)
-} raw_rsa_key_t;
-
-// ============================================================================
-// 0. HARDWARE RNG BYPASS
-// ============================================================================
+/**
+ * @brief Hardware-agnostic entropy harvesting callback for cryptographic operations.
+ *
+ * This function conforms to standard cryptographic RNG callback signatures
+ * (e.g., mbedTLS `f_rng`). It bypasses algorithmic pseudo-random number generators
+ * (PRNGs) by directly extracting physical, non-deterministic environmental noise
+ * from the underlying silicon.
+ *
+ * @param data   Opaque pointer to a cryptographic state context. Intentionally
+ *               ignored `(void)data` as this function leverages stateless hardware entropy.
+ * @param output Pointer to the memory buffer where the stochastic bytes are written.
+ * @param len    The exact number of cryptographic random bytes requested.
+ *
+ * @return 0 on successful entropy extraction (standard cryptographic success code).
+ */
 #if defined(MCU_IS_ESP32)
     #include "esp_random.h"
     static int direct_hardware_rng(void *data, unsigned char *output, size_t len) {
@@ -73,34 +60,170 @@ typedef struct {
         return 0;
     }
 #else
-#include "hardware/structs/rosc.h"
-static int direct_hardware_rng(void *data, unsigned char *output, size_t len) {
-        (void)data;
-        for (size_t i = 0; i < len; i++) {
-            uint8_t byte = 0;
-            for (int b = 0; b < 8; b++) {
-                byte = (byte << 1) | (rosc_hw->randombit & 1);
+    #include "hardware/structs/rosc.h"
+
+    /*
+     * @brief RP2040/RP2350 TRNG Implementation
+     * Harvests entropy from the inherent phase and thermal jitter of the uncalibrated
+     * on-chip Ring Oscillator (ROSC). Because the hardware registers only yield
+     * single-bit entropy, bytes are constructed mathematically via an LSB accumulator.
+     */
+    static int direct_hardware_rng(void *data, unsigned char *output, size_t len) {
+            (void)data; // Suppress compiler warning for unused context pointer
+            for (size_t i = 0; i < len; i++) {
+                uint8_t byte = 0;
+                // Sequentially harvest 8 independent stochastic bits to construct a full byte
+                for (int b = 0; b < 8; b++) {
+                    // Shift the accumulator left and inject the microscopic hardware fluctuation
+                    // directly into the Least Significant Bit (LSB) slot via a bitwise OR mask.
+                    byte = (byte << 1) | (rosc_hw->randombit & 1);
+                }
+                output[i] = byte;
             }
-            output[i] = byte;
+            return 0;
         }
-        return 0;
-    }
 #endif
 
 // ============================================================================
-// BARE-METAL POSIX OVERRIDE
-// Mbed TLS and Newlib are desperately looking for a Linux OS to provide
-// random numbers. This intercepts their OS request and feeds them
-// Raspberry Pi Pico hardware noise instead!
+// CRYPTOGRAPHY CONFIGURATION: RSA KEY SIZE
 // ============================================================================
+// Defines the bit-length of the RSA modulus.
+//
+// SECURITY & HARDWARE WARNING:
+// - 2048 (Production): Industry minimum standard. Highly recommended
+// - 1024 (Testing)   : Cryptographically weak (deprecated by NIST). Use ONLY
+//                      for local testing.
+// ============================================================================
+#define RSA_KEY_BITS 1024
 
+/** @brief Derives the strict byte-boundary required for modulus buffers */
+#define RSA_KEY_BYTES (RSA_KEY_BITS / 8)
+
+/** @brief Specifies a 256-bit (32-byte) symmetric target for Key Encapsulation (KEM) */
+#define KEM_AES_SIZE 32
+
+/**
+ * @brief Computes the uncompressed memory footprint of the internal RSA key structure.
+ *
+ * Calculates the exact cumulative byte size of the essential RSA parameters:
+ * Modulus (N) + Private Exponent (D) + Primes (P, Q) + Public Exponent (E).
+ *
+ * Mathematical allocation per component:
+ * - N : 1.0 * RSA_KEY_BYTES
+ * - D : 1.0 * RSA_KEY_BYTES
+ * - P : 0.5 * RSA_KEY_BYTES (CRT prime)
+ * - Q : 0.5 * RSA_KEY_BYTES (CRT prime)
+ * - E : 4 bytes (Standard 65537, fixed 32-bit integer)
+ *
+ * The cumulative equation algorithmically reduces to: (3 * RSA_KEY_BYTES) + 4.
+ * For example 1024-bit: 128 + 128 + 64 + 64 + 4 = 388 bytes
+ */
+#define RAW_STRUCT_BYTES ((RSA_KEY_BYTES * 3) + 4)
+
+/**
+ * @brief Derives the maximum Radix-64 (Base64) allocation boundary.
+ *
+ * The Radix-64 encoding scheme inflates binary payloads by a strict 4:3 ratio.
+ *
+ * Formula mechanics:
+ * - `+ 2` : Implements a mathematical ceiling function over standard integer division
+ *           to guarantee fractional byte thresholds round up to the next block.
+ * - `+ 15`: Provides a deterministic safety margin to accommodate compiler-specific
+ *           structure alignment constraints, potential newline delimiters, and the
+ *           strictly required C-string null-terminator ('\0').
+ */
+#define MAX_BASE64_KEY_SIZE ((((RAW_STRUCT_BYTES) + 2) / 3) * 4 + 15)
+
+/** @brief Revocation nonce a 256-bit (32-byte) */
+#define RN_SIZE 32
+
+/**
+ * @brief Defines the absolute memory boundary for the AES-CTR transmission payload.
+ *
+ * Mathematically allocates continuous memory for the algebraic payload structure:
+ * Output Capacity = length(Plaintext) + length(128-bit/16-bytes Nonce).
+ *
+ * @note This calculation is strictly bound to stream cipher modes (CTR) that do
+ *       not require block padding. It is invalid for block modes (e.g., CBC) or
+ *       authenticated modes (e.g., GCM) which require different structural overhead.
+ */
+#define AES_CTR_PAYLOAD_BUFFER_SIZE (RN_SIZE + 16)
+
+/**
+ * @brief Memory-mapped algebraic components of an RSA cryptographic keypair.
+ *
+ * This structure isolates the foundational multi-precision integers required for
+ * RSA modular exponentiation. It contains highly sensitive secret key material
+ * (P, Q, D) multiplexed with public parameters (N, E).
+ *
+ * @note Endianness: Cryptographic arrays in this structure are strictly expected
+ *       to be formatted in Big-Endian (network byte order) representation.
+ *
+ * @warning MEMORY SECURITY: Instances of this structure contain raw, unencrypted
+ *          prime factors. This memory must be cryptographically zeroized (scrubbed)
+ *          immediately after processing to mitigate cold-boot and DMA extraction attacks.
+ */
+typedef struct {
+    /**
+     * @brief Public Modulus (N)
+     * Mathematical product of the secret primes (N = P * Q). Its byte-length
+     * strictly dictates the cryptographic strength of the trapdoor permutation.
+     */
+    uint8_t N[RSA_KEY_BYTES];
+
+    /**
+     * @brief First Secret Prime Factor (P)
+     * Foundation of the trapdoor. Mathematically constrained to exactly half
+     * the modulus bit-length to prevent elliptic curve factorization attacks.
+     */
+    uint8_t P[RSA_KEY_BYTES / 2];
+
+    /**
+     * @brief Second Secret Prime Factor (Q)
+     * Co-prime foundation. Also mathematically constrained to half the modulus bit-length.
+     */
+    uint8_t Q[RSA_KEY_BYTES / 2];
+
+    /**
+     * @brief Private Exponent (D)
+     * The modular multiplicative inverse of E modulo Carmichael's totient function of N.
+     * Utilized as the primary exponent during decryption and digital signature generation.
+     */
+    uint8_t D[RSA_KEY_BYTES];
+
+    /**
+     * @brief Public Exponent (E)
+     * Utilized for encryption and signature verification. Standardized to a 32-bit (4-byte)
+     * allocation to perfectly accommodate the widely adopted Fermat prime F4 (65537 / 0x010001).
+     */
+    uint8_t E[4];
+
+} raw_rsa_key_t;
+
+
+/**
+ * @brief System call override providing hardware-backed cryptographic entropy.
+ *
+ * In bare-metal environments, cryptographic libraries (e.g., mbedTLS) and standard C
+ * libraries (Newlib) lack an underlying OS to service POSIX random requests (e.g., `/dev/urandom`).
+ * This function intercepts the `_getentropy` syscall stub and routes it to the
+ * microcontroller's True Random Number Generator (TRNG).
+ *
+ * Entropy is harvested directly from the inherent thermal and phase jitter of the
+ * RP2040/RP2350 Ring Oscillator (ROSC).
+ *
+ * @param buffer Pointer to the memory block to be populated with random bytes.
+ * @param length The number of cryptographic random bytes requested.
+ * @return 0 on successful entropy generation.
+ */
 int _getentropy(void *buffer, size_t length) {
     uint8_t *buf = (uint8_t *)buffer;
 
+    // Harvest 8 individual bits of physical ROSC phase jitter to construct a byte
     for (size_t i = 0; i < length; i++) {
         uint8_t byte = 0;
         for (int b = 0; b < 8; b++) {
-            // Read 1 random bit from the physical Pico ROSC jitter
+            // Read the hardware random bit register and shift it into the LSB (Least Significant Bit) accumulator
             byte = (byte << 1) | (rosc_hw->randombit & 1);
         }
         buf[i] = byte;
@@ -109,19 +232,15 @@ int _getentropy(void *buffer, size_t length) {
     return 0;
 }
 
-// Some versions of Newlib look for the non-underscore version,
-// so we safely alias it here just in case.
+// Syscall Alias (For older Newlib versions)
 int getentropy(void *buffer, size_t length) {
     return _getentropy(buffer, length);
 }
 ///////////////////////////////////////////////
 ///////////////////////////////////////////////
 // ============================================================================
-// READ PUBLIC KEY AND CONVERT TO BASE64
-// ============================================================================
-// ============================================================================
-// STANDALONE BASE64 ENCODER (Bypasses Mbed TLS Linker Errors)
-// ============================================================================
+// Read RSA Public Key and Convert to BASE64
+// Base64 Encoder
 static const char b64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 void encode_base64_standalone(const uint8_t *in, size_t in_len, uint8_t *out, size_t *out_len) {
@@ -150,7 +269,7 @@ int get_fido_pubkey_base64(unsigned char *out_b64_buffer, size_t buffer_size, si
     file_t *ef_pub = search_file(EF_GLOBALREVOKE_PUB);
 
     if (ef_pub == NULL || !file_has_data(ef_pub)) {
-        printf("❌ Error: EF_FIDO_RSA_PUB not found or is empty!\n");
+        printf("Error: EF_FIDO_RSA_PUB not found or is empty!\n");
         return -1;
     }
 
@@ -160,7 +279,7 @@ int get_fido_pubkey_base64(unsigned char *out_b64_buffer, size_t buffer_size, si
     // Buffer safety check: Base64 is mathematically ~1.33x larger than binary
     size_t required_size = ((raw_size + 2) / 3) * 4 + 1;
     if (buffer_size < required_size) {
-        // Error: Base64 buffer is too small! Needs required_size bytes.
+        // Error: Base64 buffer is too small Needs required_size bytes.
         return -2;
     }
 
@@ -175,12 +294,11 @@ int get_fido_pubkey_base64(unsigned char *out_b64_buffer, size_t buffer_size, si
  * Fills a 32-byte array with random data directly from the Pico's ROSC hardware.
  * Simple hardware TRNG — no MbedTLS, no extra libraries.
  *
- * WARNING: This is **not** cryptographically secure.
- * Use only for non-security purposes (LED blinking, simple games, etc.).
- * For FIDO2/crypto use the MbedTLS version instead.
+ * WARNING: This is not cryptographically secure.
+ * For PROD code use the MbedTLS version instead.
  */
 void generate_simple_random_32(uint8_t *output) {
-    // Loop through all 32 bytes we need to fill
+    // Loop through all 32 bytes to fill
     for (int i = 0; i < 32; i++) {
         uint8_t random_byte = 0;
 
@@ -193,83 +311,97 @@ void generate_simple_random_32(uint8_t *output) {
         output[i] = random_byte;
     }
 }
-/////////////////////////////////////////////////////////
-////////////////////////////////////////////
-/// V
-/**
- * Mathematically binds the uncompressed Public Key and a Random Challenge into a single 32-byte SHA-256 hash.
- */
-int generate_combined_hash(mbedtls_ecdsa_context *ekey, const uint8_t *random_challenge, uint8_t *output_hash) {
 
-    // 1. Get the curve size (for P-256, plen is 32 bytes)
-    const mbedtls_ecp_curve_info *cinfo = mbedtls_ecp_curve_info_from_grp_id(ekey->grp.id);
+
+/**
+ * @brief Computes a composite 256-bit (32-byte) SHA-256 digest, mathematically binding Credential Public Key and a RN.
+ * V = Hash(pkCred, RN)
+ */
+int calculate_v(mbedtls_ecdsa_context *pk_cred, const uint8_t *rn, uint8_t *output_hash) {
+
+    // Get the curve size (for P-256, plen is 32 bytes)
+    const mbedtls_ecp_curve_info *cinfo = mbedtls_ecp_curve_info_from_grp_id(pk_cred->grp.id);
     if (cinfo == NULL) {
         return CTAP1_ERR_OTHER;
     }
     size_t plen = cinfo->bit_size / 8;
 
-    // The uncompressed key length is exactly 65 bytes (1 byte for 0x04 + 32 for X + 32 for Y)
+    // uncompressed public key length is exactly 65 bytes (1 byte for 0x04 + 32 for X + 32 for Y)
     size_t raw_len = 1 + (plen * 2);
 
-    // 2. Allocate pointers for the raw key and the hash
+    // Allocate pointers for the raw key and the hash
     uint8_t *raw_pub_key = (uint8_t *)calloc(1, raw_len);
 
     // Set the uncompressed format indicator
     raw_pub_key[0] = 0x04;
 
-    // Extract X and Y mathematically straight into the buffer
-    mbedtls_mpi_write_binary(&ekey->Q.X, raw_pub_key + 1, plen);
-    mbedtls_mpi_write_binary(&ekey->Q.Y, raw_pub_key + 1 + plen, plen);
+    // Extract X and Y into the buffer
+    mbedtls_mpi_write_binary(&pk_cred->Q.X, raw_pub_key + 1, plen);
+    mbedtls_mpi_write_binary(&pk_cred->Q.Y, raw_pub_key + 1 + plen, plen);
 
-    // ==========================================
-    // 3. THE STREAMING HASH ENGINE
-    // ==========================================
     mbedtls_sha256_context sha_ctx;
     mbedtls_sha256_init(&sha_ctx);
 
-    // Start the SHA-256 engine (0 means SHA-256, 1 would mean SHA-224)
+    // SHA-256 (0 means SHA-256, 1 mean SHA-224)
     mbedtls_sha256_starts(&sha_ctx, 0);
 
-    // Feed the 65-byte Public Key into the engine
+    // Feed the 65-byte Public Key
     mbedtls_sha256_update(&sha_ctx, raw_pub_key, raw_len);
 
-    // Feed the 32-byte Random Challenge into the engine right after it
-    mbedtls_sha256_update(&sha_ctx, random_challenge, RN_SIZE);
+    // Feed the 32-byte RN
+    mbedtls_sha256_update(&sha_ctx, rn, RN_SIZE);
 
-    // Finish the math and write the final 32 bytes to our output array
+    // Finish the math and write the final 32 bytes to output array
     mbedtls_sha256_finish(&sha_ctx, output_hash);
 
-    // Clean up the hash engine from RAM
+    // Clean up memory
     mbedtls_sha256_free(&sha_ctx);
 
     return 0;
 }
 
-////////////////////////////////////////////////////
-////////////////////////////////////////////////////
-////////////////////////////////////////////////////
-// ============================================================================
-// PUBLIC KEY DER CONVERTER
-// ============================================================================
+/**
+ * @brief Serializes an asymmetric public key to canonical ASN.1 DER and resolves retrograde memory alignment.
+ *
+ * Transcodes the in-memory RSA public key parameters into a strict Distinguished Encoding
+ * Rules (DER) byte sequence (X.509 SubjectPublicKeyInfo format).
+ *
+ * @warning Retrograde Buffer Population: mbedTLS implements DER serialization using a
+ *          bottom-up parsing algorithm. It populates the buffer from the highest memory
+ *          address down to the lowest. This function mathematically derives the exact
+ *          starting pointer of the valid payload using offset arithmetic.
+ *
+ * @param pk            Pointer to the initialized cryptographic context containing the RSA public key.
+ * @param der_buf       Pre-allocated static memory block for the serialization output.
+ * @param buf_size      Total byte capacity of the pre-allocated `der_buf`.
+ * @param out_der_start Double-pointer mutated to reference the exact memory address where
+ *                      the valid DER sequence begins (somewhere in the middle of `der_buf`).
+ * @param out_der_len   Pointer mutated to hold the exact byte-length of the serialized DER sequence.
+ *
+ * @return 0 on successful serialization and pointer alignment, or a negative mbedTLS error code on failure.
+ */
 int convert_rsa_pubkey_to_der(mbedtls_pk_context *pk,
                               unsigned char *der_buf,
                               size_t buf_size,
                               unsigned char **out_der_start,
                               size_t *out_der_len) {
 
+    // Execute the ASN.1 DER serialization
+    // Returns the exact length of the serialized data, or a negative error code.
     int der_len = mbedtls_pk_write_pubkey_der(pk, der_buf, buf_size);
-    if (der_len < 0) return der_len;
+    if (der_len < 0) return der_len; // Cryptographic serialization failure
 
-    // CRITICAL: Mbed TLS writes backwards!
+    // Resolve the Retrograde Memory Offset
+    // Because the mbedTLS ASN.1 compiler writes back-to-front, the valid payload
+    // resides at the absolute end of the buffer. We compute the exact starting
+    // address via strictly typed pointer arithmetic.
     *out_der_start = der_buf + buf_size - der_len;
     *out_der_len = (size_t)der_len;
 
     return 0;
 }
 
-// ============================================================================
-// RSA KEYPAIR LOAD OR GENERATE
-// ============================================================================
+// RSA Keypair Load from file or Generate new
 int generate_rsa_keypair(mbedtls_pk_context *pk) {
     mbedtls_pk_init(pk);
     mbedtls_pk_setup(pk, mbedtls_pk_info_from_type(MBEDTLS_PK_RSA));
@@ -279,14 +411,12 @@ int generate_rsa_keypair(mbedtls_pk_context *pk) {
     file_t *ef_pub  = search_file(EF_GLOBALREVOKE_PUB);
 
     if (ef_priv == NULL || ef_pub == NULL) {
-        // Error: FIDO2 filesystem entries missing
+        // Error: PICO filesystem entries missing
         mbedtls_pk_free(pk);
         return -1;
     }
 
-    // ------------------------------------------------------------------------
-    // READ RAW KEY (If it exists)
-    // ------------------------------------------------------------------------
+    // Read Raw RSA Key from file
     if (file_has_data(ef_priv) && file_has_data(ef_pub)) {
 
         if (file_get_size(ef_priv) == sizeof(raw_rsa_key_t)) {
@@ -302,17 +432,13 @@ int generate_rsa_keypair(mbedtls_pk_context *pk) {
 
             if (import_ret == 0) {
                 mbedtls_rsa_complete(rsa);
-                // Successfully restored RSA Keypair
                 return 0;
             }
         }
     }
 
-    // ------------------------------------------------------------------------
-    // GENERATE NEW KEYPAIR
-    // ------------------------------------------------------------------------
-    // Generating RSA Key. This may take a moment
-    int ret = mbedtls_rsa_gen_key(rsa, direct_hardware_rng, NULL, FIDO_RSA_BITS, 65537);
+    // Generate RSA Keypair
+    int ret = mbedtls_rsa_gen_key(rsa, direct_hardware_rng, NULL, RSA_KEY_BITS, 65537);
 
     if (ret != 0) {
         // Failed to generate RSA Keypair
@@ -320,9 +446,7 @@ int generate_rsa_keypair(mbedtls_pk_context *pk) {
         return ret;
     }
 
-    // ------------------------------------------------------------------------
-    // SAVE PRIVATE KEY TO FILE
-    // ------------------------------------------------------------------------
+    // Save Private Key To File
     raw_rsa_key_t raw_key = {0};
 
     ret = mbedtls_rsa_export_raw(rsa,
@@ -337,13 +461,16 @@ int generate_rsa_keypair(mbedtls_pk_context *pk) {
         int flash_ret = file_put_data(ef_priv, (uint8_t *)&raw_key, sizeof(raw_rsa_key_t));
         if (flash_ret == CCID_OK) {
             // Private key saved to a file
+        }else {
+            // Failed to save Public DER to file
+            return -1;
         }
     }
 
     // ------------------------------------------------------------------------
-    // CONVERT AND SAVE PUBLIC DER TO FILE
+    // Covert and save public key in DER format to pico internal storage
     // ------------------------------------------------------------------------
-    // An RSA 1024/2048 public key DER format is max ~300 bytes. 400 is extremely safe.
+    // RSA public key DER format is max ~300 bytes. using 400 bytes to be safe.
     unsigned char der_buffer[400] = {0};
     unsigned char *der_start_ptr = NULL;
     size_t der_length = 0;
@@ -365,80 +492,69 @@ int generate_rsa_keypair(mbedtls_pk_context *pk) {
 
     return 0;
 }
-//////////////////////////////////////////////////////////////////////////////////////////
+
 //////////////////////////////////////////////////////////////////////////////////////////
 // ============================================================================
 // Generates a random 32-byte AES secret and encrypts it.
-// ============================================================================
 // Reverse RSA KEM: ENCAPSULATE USING PRIVATE KEY
-// ============================================================================
-// Generate the Random Seed (Z) which is exact size of FIDO_RSA_BYTES so no need of padding with zeros.
-// ============================================================================
-int custom_kem_encapsulate_private(mbedtls_rsa_context *rsa,
+// Generate the Random Seed (Z) which is exact size of RSA_KEY_BYTES so no need of padding with zeros.
+// =========================================================================
+int custom_kem_encapsulate(mbedtls_rsa_context *rsa,
                                    uint8_t *out_shared_secret,
                                    size_t secret_len,
                                    uint8_t *out_ciphertext) {
 
-    // Get dynamic size of loaded key (e.g., 128 bytes for RSA-1024)
+    // Get dynamic size of loaded key
     size_t rsa_len = mbedtls_rsa_get_len(rsa);
 
     // Safety checks: Ensure buffers are large enough
-    if (secret_len > 32 || rsa_len > FIDO_RSA_BYTES) {
+    if (secret_len > 32 || rsa_len > RSA_KEY_BYTES) {
         // [Custom KEM] Key size mismatch
         return -1;
     }
 
-    // ========================================================================
-    // The array size of seed_Z is exactly FIDO_RSA_BYTES
-    // (e.g., 128 bytes for RSA-1024, or 256 bytes for RSA-2048).
+    // The array size of seed_Z is exactly RSA_KEY_BYTES
     // It must perfectly match the length of the RSA key being used.
-    // ========================================================================
-    uint8_t seed_Z[FIDO_RSA_BYTES] = {0};
+    uint8_t seed_Z[RSA_KEY_BYTES] = {0};
 
-    // ------------------------------------------------------------------------
-    // STEP A: Generate Random Seed (Z)
-    // ------------------------------------------------------------------------
+    // Generate Random Seed (Z)
     int ret = direct_hardware_rng(NULL, seed_Z, rsa_len);
     if (ret != 0) return ret;
 
-    // ========================================================================
-    // Fix the sign bit: Forces the random number to be mathematically smaller
-    // than the RSA Modulus (Matches the Java BigInteger logic exactly).
-    // ========================================================================
+    // KEM SEED FORMATTING: PREVENT JAVA CRASHES & MATH ERRORS
+    // We intentionally overwrite the very first byte of random seed with 0x00.
+    // We must do this for two critical reasons before doing raw RSA math:
+    //
+    // 1. RSA Math Rule: The payload MUST be mathematically smaller than the RSA Modulus.
+    // 2. Java Compatibility: Java uses a "Sign Bit" to check if numbers are negative.
+    //    If the first bit of our random seed is a '1', Java considers as a negative number.
+    //    Forcing this to 0x00 guarantees Java reads it as positive.
     seed_Z[0] = 0x00;
 
-    // ------------------------------------------------------------------------
-    // STEP B: Derive Symmetric Key (The SHA-256)
-    // ------------------------------------------------------------------------
+    // Derive Symmetric Key (The SHA-256)
     // The array size of hash_output is exactly 32 bytes,
     // which is the fixed output size of a standard SHA-256 cryptographic hash.
-    // ------------------------------------------------------------------------
     uint8_t hash_output[32] = {0};
 
-    // Hash the seed_Z down to exactly 32 bytes
+    // Hash the seed_Z which is exactly 32 bytes
     mbedtls_sha256(seed_Z, rsa_len, hash_output, 0);
 
     // Output the AES key for encryption
     memcpy(out_shared_secret, hash_output, secret_len);
 
-    // ------------------------------------------------------------------------
-    // STEP C: "Encrypt" seed using raw Private Key (No Padding)
-    // ------------------------------------------------------------------------
+    // Encrypt seed using raw Private Key (No Padding)
     ret = mbedtls_rsa_private(rsa,
                               direct_hardware_rng,
                               NULL,
                               seed_Z,
                               out_ciphertext);
 
-    // If RSA math fails, immediately destroy the AES key
+    // On error, cleanup key from memory
     if (ret != 0) {
         memset(out_shared_secret, 0, secret_len);
     }
 
-    // ------------------------------------------------------------------------
-    // STEP D: Secure Cleanup
-    // ------------------------------------------------------------------------
-    // Wipe the plaintext seed and the hash from RAM immediately
+    // Cleanup from memory
     memset(seed_Z, 0, sizeof(seed_Z));
     memset(hash_output, 0, sizeof(hash_output));
 
@@ -446,111 +562,119 @@ int custom_kem_encapsulate_private(mbedtls_rsa_context *rsa,
 }
 
 // ============================================================================
-// GENERATE KEM PAYLOAD
+// Generate KEM Payload
 // ============================================================================
 int generate_kem_payload(uint8_t *out_aes_key, uint8_t *out_ciphertext) {
 
-    // [KEM Generator] Starting RSA-KEM Encapsulation
-    // 1. Initialize the raw RSA engine
+    // Starting RSA-KEM Encapsulation
+    // Initialize the raw RSA context
     mbedtls_rsa_context rsa;
     mbedtls_rsa_init(&rsa);
 
-    // 2. Load the Private Key from file
+    // Load the Private Key from file
     file_t *ef_priv = search_file(EF_GLOBALREVOKE);
     if (ef_priv == NULL || !file_has_data(ef_priv)) {
-        // [KEM Generator] Key not found in file
+        //  Key not found in file
         mbedtls_rsa_free(&rsa);
         return -1;
     }
 
     raw_rsa_key_t *raw_key = (raw_rsa_key_t *)file_get_data(ef_priv);
 
-    // 3. Load ALL math variables (N, P, Q, D, E) into the RSA engine
+    // Load all math variables (N, P, Q, D, E) into the RSA context
     int import_ret = mbedtls_rsa_import_raw(&rsa,
         raw_key->N, sizeof(raw_key->N),
-        raw_key->P, sizeof(raw_key->P), // <-- Private Prime 1
-        raw_key->Q, sizeof(raw_key->Q), // <-- Private Prime 2
-        raw_key->D, sizeof(raw_key->D), // <-- Private Exponent
+        raw_key->P, sizeof(raw_key->P), // Private Prime 1
+        raw_key->Q, sizeof(raw_key->Q), // Private Prime 2
+        raw_key->D, sizeof(raw_key->D), // Private Exponent
         raw_key->E, sizeof(raw_key->E)
     );
 
     if (import_ret != 0) {
-        // [KEM Generator] Failed to load private key into RSA engine
+        // Failed to load private key into RSA context
         mbedtls_rsa_free(&rsa);
         return -1;
     }
     mbedtls_rsa_complete(&rsa);
 
-    // 4. Call the core RSA-KEM Encapsulation function
-    int kem_ret = custom_kem_encapsulate_private(&rsa, out_aes_key, KEM_AES_SIZE, out_ciphertext);
+    // Custom RSA-KEM Encapsulation
+    int kem_ret = custom_kem_encapsulate(&rsa, out_aes_key, KEM_AES_SIZE, out_ciphertext);
 
-    // Clean up the engine immediately to save Pico RAM
+    // Clean up the memory
     mbedtls_rsa_free(&rsa);
 
     if (kem_ret != 0) {
-        // [KEM Generator] Encapsulation failed
+        // Encapsulation failed
         return -1;
     }
 
-    // [KEM Generator] Success! RSA-KEM AES Key derived and encrypted
+    // RSA-KEM AES Key derived and encrypted
     return 0;
 }
 
-///////////////////////////////////////////////////////////
-// ============================================================================
-// AES-256 CTR: AUTO-GENERATE NONCE & ENCRYPT
-// ============================================================================
-// The output_data buffer MUST be at least (data_len + 16) bytes long!
-// Format: [ 16-byte Nonce ] + [ Encrypted Message ]
+/**
+ * @brief Encrypts a plaintext payload using AES-256-CTR and prepends a 128-bit nonce.
+ *
+ * Initializes the AES-CTR stream cipher using a hardware-generated true random nonce (TRNG).
+ * As a stream cipher, CTR mode requires no block padding. The resulting output is structured
+ * as a self-contained cryptographic payload: [16-byte Initial Nonce] || [Ciphertext].
+ *
+ * @warning Memory Constraint: `output_data` must be pre-allocated to a minimum capacity
+ *          of `(data_len + 16)` bytes to prevent memory corruption via buffer overrun.
+ *
+ * @param key         Pointer to the 32-byte (256-bit) symmetric AES key.
+ * @param input_data  Pointer to the plaintext payload.
+ * @param data_len    Length of the plaintext payload in bytes.
+ * @param output_data Pointer to the destination buffer (minimum size: data_len + 16).
+ *
+ * @return 0 on success, or a non-zero mbedTLS error code on failure.
+ */
 int apply_aes_ctr_with_nonce(const uint8_t *key,
                              const uint8_t *input_data,
                              size_t data_len,
                              uint8_t *output_data) {
 
-    // 1. Generate a brand new, random 16-byte Nonce
+    // Generate a random 16-byte nonce
     uint8_t local_nonce[16] = {0};
     int ret = direct_hardware_rng(NULL, local_nonce, 16);
     if (ret != 0) {
-        // [AES] Failed to generate random Nonce!
-        return ret;
+        return ret; //Failed to generate random nonce
     }
 
-    // 2. Staple the pristine Nonce to the very front of the output buffer
+    // Prepend the initial nonce state to the output buffer
     memcpy(output_data, local_nonce, 16);
 
-    // 3. Initialize the AES engine
+    // Initialize AES context and compute the 256-bit key
     mbedtls_aes_context aes;
     mbedtls_aes_init(&aes);
     ret = mbedtls_aes_setkey_enc(&aes, key, 256);
 
     if (ret != 0) {
-        // [AES] Failed to set encryption key
         mbedtls_aes_free(&aes);
-        return ret;
+        return ret; // Key initialization failure
     }
 
-    // 4. Set up CTR mode state trackers
+    // Initialize CTR mode state vectors
     size_t nc_off = 0;
-    // The size is 16 bytes, because AES requires a 128-bit block buffer.
+    // 128-bit/16-byte buffer to store the intermediate keystream block
     uint8_t stream_block[16] = {0};
 
-    // 5. Encrypt the data!
-    // CRITICAL: We use "output_data + 16" so the AES engine writes the
-    // encrypted bytes exactly AFTER the Nonce we just copied in!
+    // Execute AES-CTR cipher operation
+    // Pointer arithmetic (output_data + 16) preserves the prepended nonce.
+    // local_nonce is passed as the mutable counter block and iterates internally.
     ret = mbedtls_aes_crypt_ctr(&aes,
                                 data_len,
                                 &nc_off,
-                                local_nonce, // Mbed TLS will safely modify this local copy
+                                local_nonce,
                                 stream_block,
                                 input_data,
                                 output_data + 16);
 
     if (ret != 0) {
-        // [AES] Cryptography failed
-        return -1;
+        return -1; // Cryptographic operation failure
     }
 
-    // Clean up
+    // Clean up memory
     mbedtls_aes_free(&aes);
 
     return ret;
@@ -564,15 +688,14 @@ CborError encode_grs_extension(CborEncoder *mapEncoder, mbedtls_ecdsa_context *e
 
 
     //////////////////////////////////////////
-    ////////// generate revocation nonce RN + V
-    // RN = revocation nonce // TODO: check 32 byte or bigger needed?
+    ////////// generate RN (revocation nonce) and V
     uint8_t RN[RN_SIZE] = {0}; // Declare an array to hold the 32 bytes (initialized to 0)
     // Hash(CredPubKey+RN) = v = vCredPkRN
     uint8_t vCredPkRN[32] = {0};
     // Generate the 32-byte RN
     generate_simple_random_32(RN);
     // Generate the combined hash Hash(CredPubKey+RN) = v = vCredPkRN
-    if (generate_combined_hash(ekey, RN, vCredPkRN) != 0) {
+    if (calculate_v(ekey, RN, vCredPkRN) != 0) {
         return CTAP1_ERR_OTHER;
     }
     //////////////////////////////////////////
@@ -592,22 +715,20 @@ CborError encode_grs_extension(CborEncoder *mapEncoder, mbedtls_ecdsa_context *e
     //////////////////////////////////////////
     /// Gnerate Global revocation key and convert it to base64 for QRCode.
     // Base64 strings are mathematically ~33% larger than raw binary data.
-    // For RSA 1024 A 400-byte raw RSA key needs at least a 550-byte buffer.
-    // We use 550 to be perfectly safe.
+    // For RSA 1024 A ~400-byte raw RSA key needs at least a ~535-byte buffer.
     //////////////////////////////////////////
-    // unsigned char pk_r_base64_string[550] = {0};
     unsigned char pk_r_base64_string[MAX_BASE64_KEY_SIZE] = {0};
     size_t text_length = 0;
     get_fido_pubkey_base64(pk_r_base64_string, sizeof(pk_r_base64_string), &text_length);
     // draw QR Code
     draw_qrcode((const char*)pk_r_base64_string);
-    // 5. Securely wipe the Private Key (and Public Key) from memory
+    // Clear Private Key (and Public Key) from memory
     mbedtls_pk_free(&keypair);
     //////////////////////////////////////////
 
 
     //////////////////////////////////////////
-    // V
+    // Encode V
     //////////////////////////////////////////
     CBOR_CHECK(cbor_encode_text_stringz(&nestedMapEncoder, "v"));
     CBOR_CHECK(cbor_encode_byte_string(&nestedMapEncoder, vCredPkRN, 32));
@@ -618,17 +739,17 @@ CborError encode_grs_extension(CborEncoder *mapEncoder, mbedtls_ecdsa_context *e
     //////////////////////////////////////////
     /// Generate Reverse RSA KEM, AES CTR for W and C
     ///////////////////////////////////////////////////////
-    /// W
+    /// Prepare W = Enc(k, RN)
     //////////////////////////////////////////
     uint8_t shared_aes_key[KEM_AES_SIZE] = {0};
-    uint8_t ciphertext[FIDO_RSA_BYTES] = {0};
+    uint8_t ciphertext[RSA_KEY_BYTES] = {0};
     int status = generate_kem_payload(shared_aes_key, ciphertext);
     if (status != 0) {
-        return -1; // Abort if generation failed
+        return -1; // exit on error
     }
 
-    // Allocate a buffer for W = Encrypted RN (Revocation Nonce)
-    uint8_t w_encrypted[AES_PAYLOAD_BUFFER_SIZE] = {0};
+    // Allocate a buffer for W (Encrypted RN (Revocation Nonce))
+    uint8_t w_encrypted[AES_CTR_PAYLOAD_BUFFER_SIZE] = {0};
     int aes_status = apply_aes_ctr_with_nonce(shared_aes_key,
                                           RN,
                                           RN_SIZE,
@@ -639,17 +760,17 @@ CborError encode_grs_extension(CborEncoder *mapEncoder, mbedtls_ecdsa_context *e
     }
     // Encode W
     CBOR_CHECK(cbor_encode_text_stringz(&nestedMapEncoder, "w"));
-    size_t w_encrypted_size = AES_PAYLOAD_BUFFER_SIZE;
+    size_t w_encrypted_size = AES_CTR_PAYLOAD_BUFFER_SIZE;
     CBOR_CHECK(cbor_encode_byte_string(&nestedMapEncoder, w_encrypted, w_encrypted_size));
     CBOR_CHECK(cbor_encode_text_stringz(&nestedMapEncoder, "wAlg"));
     CBOR_CHECK(cbor_encode_int(&nestedMapEncoder, -65532));
 
-    // Wipe the local copy of the AES key from the stack
+    // Clear from memory
     memset(shared_aes_key, 0, sizeof(shared_aes_key));
 
-    // Encode C = Ciphertext
+    // Encode C (Ciphertext)
     CBOR_CHECK(cbor_encode_text_stringz(&nestedMapEncoder, "c"));
-    CBOR_CHECK(cbor_encode_byte_string(&nestedMapEncoder, ciphertext, FIDO_RSA_BYTES));
+    CBOR_CHECK(cbor_encode_byte_string(&nestedMapEncoder, ciphertext, RSA_KEY_BYTES));
     CBOR_CHECK(cbor_encode_text_stringz(&nestedMapEncoder, "cAlg"));
     CBOR_CHECK(cbor_encode_int(&nestedMapEncoder, -275));
 
