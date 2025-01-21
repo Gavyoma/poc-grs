@@ -72,7 +72,7 @@ public class DatabaseSeeder implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) throws Exception {
-        if (revocationKeyRepository.count() > 0) {
+        if (revocationKeyRepository.count() > 0 || relyingPartyEventsRepository.count() > 0) {
             log.info("Database already contains data. Skipping development seed phase.");
             return;
         }
