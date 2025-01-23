@@ -27,7 +27,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ncraft.grs.common.infrastructure.identifiers.UuidGenerator;
 import org.ncraft.grs.relyingparty.api.dto.PaginatedResponse;
 import org.ncraft.grs.relyingparty.api.dto.ProcessedWDashDto;
 import org.ncraft.grs.relyingparty.api.dto.RelyingPartyWebhookPayload;
@@ -45,8 +44,7 @@ import org.springframework.web.bind.annotation.*;
 public class RelyingPartyController {
 
     private final RelyingPartyService relyingPartyService;
-    private final UuidGenerator uuidGenerator;
-
+ 
     @Operation(
             summary = "Fetch processed W' values",
             description = "Retrieves a paginated collection of processed W' values. Uses an opaque cursor mechanism to optimize performance while preserving security and privacy."

@@ -16,11 +16,23 @@
 
 package org.ncraft.grs;
 
+import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
-//TODO: add more tests
 @SpringBootTest
-class DemoApplicationTests {
+@Testcontainers
+class GrsApplicationTests {
 
+    @Container
+    @ServiceConnection
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17.0-alpine");
+
+    @Test
+    void contextLoads() {
+    }
 
 }
