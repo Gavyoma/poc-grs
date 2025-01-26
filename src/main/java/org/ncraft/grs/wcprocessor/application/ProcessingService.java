@@ -22,6 +22,7 @@ import org.ncraft.grs.common.crypto.WDashDecryptor;
 import org.ncraft.grs.common.exception.DomainRuleViolationException;
 import org.ncraft.grs.common.exception.InfrastructureOfflineException;
 import org.ncraft.grs.common.infrastructure.identifiers.UuidGenerator;
+import org.ncraft.grs.wcprocessor.domain.ProcessingStatus;
 import org.ncraft.grs.wcprocessor.domain.exception.BatchProcessingException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessResourceFailureException;
@@ -54,7 +55,7 @@ public class ProcessingService {
             List<UnprocessedPair> chunk = fetchUnprocessedChunk();
 
             if (chunk.isEmpty()) {
-                break; // No more pairs to process, exit the loop
+                break;
             }
 
             processAndSaveChunk(chunk);
@@ -106,9 +107,10 @@ public class ProcessingService {
                         pair.c()
                 );
 
-                validItems.add(new ValidPair(pair, generatedHash));
+                validItems.add(new ValidPair(pair, generatedHash, ProcessingStatus.SUCCESS, ""));
 
             } catch (DomainRuleViolationException e) {
+                validItems.add(new ValidPair(pair, "", ProcessingStatus.FAILED, formatErrorDetails(e)));
                 log.warn("Skipping saving wDash (Key UUID: {}, Event UUID: {}) due to domain rule violation: {}",
                         pair.keyId(), pair.eventId(), e.getMessage());
             }
@@ -119,8 +121,8 @@ public class ProcessingService {
         }
 
         String insertSql = """
-                    INSERT INTO processed_events (id, key_id, event_id, w_dash, created_at)
-                    VALUES (?, ?, ?, ?, NOW())
+                    INSERT INTO processed_events (id, key_id, event_id, w_dash, processing_status, error_details, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, NOW())
                     ON CONFLICT (key_id, event_id) DO NOTHING
                 """;
 
@@ -129,9 +131,22 @@ public class ProcessingService {
             ps.setObject(2, validItem.pair.keyId());
             ps.setObject(3, validItem.pair.eventId());
             ps.setString(4, validItem.generatedHash);
+            ps.setString(5, validItem.processingStatus.name());
+            ps.setString(6, validItem.errorDetails);
         });
     }
 
-    private record ValidPair(UnprocessedPair pair, String generatedHash) {
+    private String formatErrorDetails(Exception ex) {
+        String errorMessage = ex.getClass().getSimpleName() + ": " + ex.getMessage();
+        if (ex.getCause() != null) {
+            errorMessage += " | Root Cause: " + ex.getCause().getMessage();
+        }
+        return errorMessage.length() > 2000
+                ? errorMessage.substring(0, 2000) + "... [TRUNCATED]"
+                : errorMessage;
+    }
+
+    private record ValidPair(UnprocessedPair pair, String generatedHash, ProcessingStatus processingStatus,
+                             String errorDetails) {
     }
 }

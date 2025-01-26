@@ -28,8 +28,8 @@ import org.ncraft.grs.relyingparty.domain.RelyingPartyEvents;
 import org.ncraft.grs.relyingparty.infrastructure.RelyingPartyEventsRepository;
 import org.ncraft.grs.revocation.domain.RevocationKey;
 import org.ncraft.grs.revocation.infrastructure.RevocationKeyRepository;
-import org.ncraft.grs.wcprocessor.domain.ProcessedEvents;
-import org.ncraft.grs.wcprocessor.domain.ProcessedEventsRepository;
+import org.ncraft.grs.wcprocessor.domain.ProcessedEvent;
+import org.ncraft.grs.wcprocessor.domain.ProcessedEventRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
@@ -71,7 +71,7 @@ class RelyingPartyControllerIT {
     WebTestClient webTestClient;
 
     @Autowired
-    ProcessedEventsRepository processedEventsRepository;
+    ProcessedEventRepository processedEventRepository;
 
     @Autowired
     RevocationKeyRepository revocationKeyRepository;
@@ -91,13 +91,13 @@ class RelyingPartyControllerIT {
 
     @BeforeEach
     void cleanDatabase() {
-        processedEventsRepository.deleteAll();
+        processedEventRepository.deleteAll();
         revocationKeyRepository.deleteAll();
         relyingPartyEventsRepository.deleteAll();
     }
 
     private void seedProcessed(String... wDashes) {
-        List<ProcessedEvents> events = IntStream.range(0, wDashes.length)
+        List<ProcessedEvent> events = IntStream.range(0, wDashes.length)
                 .mapToObj(i -> {
                     RevocationKey key = revocationKeyRepository.save(
                             new RevocationKey(
@@ -112,7 +112,7 @@ class RelyingPartyControllerIT {
                                     urlSafeBase64("c-" + i)
                             )
                     );
-                    return new ProcessedEvents(
+                    return new ProcessedEvent(
                             UUID.randomUUID(),
                             key.getId(),
                             rpEvent.getId(),
@@ -120,7 +120,7 @@ class RelyingPartyControllerIT {
                     );
                 })
                 .toList();
-        processedEventsRepository.saveAll(events);
+        processedEventRepository.saveAll(events);
     }
 
     @Nested

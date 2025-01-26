@@ -14,17 +14,8 @@
  * limitations under the License.
  */
 
-package org.ncraft.grs.relyingparty.api.dto;
+package org.ncraft.grs.wcprocessor.domain;
 
-
-import org.ncraft.grs.wcprocessor.domain.ProcessedEvent;
-
-public record ProcessedWDashDto(
-        String wDash
-) {
-    public static ProcessedWDashDto fromEntity(ProcessedEvent entity) {
-        return new ProcessedWDashDto(
-                entity.getWDash()
-        );
-    }
+public enum ProcessingStatus {
+    PENDING, PROCESSING, SUCCESS, FAILED
 }

@@ -27,8 +27,8 @@ import org.ncraft.grs.relyingparty.api.dto.ProcessedWDashDto;
 import org.ncraft.grs.relyingparty.api.dto.RevocationWcDto;
 import org.ncraft.grs.relyingparty.domain.RelyingPartyEvents;
 import org.ncraft.grs.relyingparty.infrastructure.RelyingPartyEventsRepository;
-import org.ncraft.grs.wcprocessor.domain.ProcessedEvents;
-import org.ncraft.grs.wcprocessor.domain.ProcessedEventsRepository;
+import org.ncraft.grs.wcprocessor.domain.ProcessedEvent;
+import org.ncraft.grs.wcprocessor.domain.ProcessedEventRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -44,7 +44,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class RelyingPartyService {
 
-    private final ProcessedEventsRepository processedEventsRepository;
+    private final ProcessedEventRepository processedEventRepository;
     private final RelyingPartyEventsRepository relyingPartyEventsRepository;
     private final CursorEncryptionService cursorEncryptionService;
     private final UuidGenerator uuidGenerator;
@@ -54,13 +54,13 @@ public class RelyingPartyService {
     public PaginatedResponse<ProcessedWDashDto> fetchWDashes(String cursor, int limit) {
         // Fetch limit + 1 to eassily check if there is a "next page"
         int fetchLimit = limit + 1;
-        List<ProcessedEvents> entities;
+        List<ProcessedEvent> entities;
 
         if (cursor == null || cursor.isBlank()) {
-            entities = processedEventsRepository.findFirstPage(fetchLimit);
+            entities = processedEventRepository.findFirstPage(fetchLimit);
         } else {
             UUID decodedCursorId = cursorEncryptionService.decryptCursor(cursor);
-            entities = processedEventsRepository.findNextPage(decodedCursorId.toString(), fetchLimit);
+            entities = processedEventRepository.findNextPage(decodedCursorId.toString(), fetchLimit);
         }
 
         boolean hasMore = entities.size() > limit;

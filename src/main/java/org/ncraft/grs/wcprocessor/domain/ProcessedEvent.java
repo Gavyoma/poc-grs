@@ -32,7 +32,7 @@ import java.util.UUID;
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class ProcessedEvents {
+public class ProcessedEvent {
 
     @Id
     private UUID id;
@@ -49,8 +49,15 @@ public class ProcessedEvents {
     @Column(name = "created_at", insertable = false, updatable = false)
     private Instant createdAt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "processing_status", nullable = false)
+    private ProcessingStatus processingStatus = ProcessingStatus.PENDING;
 
-    public ProcessedEvents(UUID id, UUID keyId, UUID eventId, String wDash) {
+    @Column(name = "error_details", columnDefinition = "text")
+    private String errorDetails;
+
+
+    public ProcessedEvent(UUID id, UUID keyId, UUID eventId, String wDash) {
         this.id = id;
         this.keyId = keyId;
         this.eventId = eventId;
@@ -63,7 +70,7 @@ public class ProcessedEvents {
         if (o == null || ProxyUtils.getUserClass(this) != ProxyUtils.getUserClass(o)) {
             return false;
         }
-        ProcessedEvents that = (ProcessedEvents) o;
+        ProcessedEvent that = (ProcessedEvent) o;
         // If the ID is null, the object hasn't been saved yet.
         // Two unsaved objects are never considered equal.
         return this.getId() != null && this.getId().equals(that.getId());

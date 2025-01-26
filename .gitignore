@@ -84,3 +84,8 @@ application-local.yml
 *.jar
 *.war
 *.ear
+
+# =========================
+# Dev scripts
+# =========================
+local-*.sh

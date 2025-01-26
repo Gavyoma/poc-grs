@@ -25,20 +25,22 @@ import java.util.List;
 import java.util.UUID;
 
 @Repository
-public interface ProcessedEventsRepository extends JpaRepository<ProcessedEvents, UUID> {
+public interface ProcessedEventRepository extends JpaRepository<ProcessedEvent, UUID> {
 
     @Query(value = """
                 SELECT * FROM processed_events
+                WHERE processing_status = 'SUCCESS'
                 ORDER BY id DESC
                 LIMIT :limit
             """, nativeQuery = true)
-    List<ProcessedEvents> findFirstPage(@Param("limit") int limit);
+    List<ProcessedEvent> findFirstPage(@Param("limit") int limit);
 
     @Query(value = """
                 SELECT * FROM processed_events
-                WHERE id < cast(:cursorId as uuid)
+                WHERE processing_status = 'SUCCESS'
+                AND id < cast(:cursorId as uuid)
                 ORDER BY id DESC
                 LIMIT :limit
             """, nativeQuery = true)
-    List<ProcessedEvents> findNextPage(@Param("cursorId") String cursorId, @Param("limit") int limit);
+    List<ProcessedEvent> findNextPage(@Param("cursorId") String cursorId, @Param("limit") int limit);
 }

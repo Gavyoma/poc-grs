@@ -1,7 +1,7 @@
 databaseChangeLog:
   - changeSet:
-      id: 02-uuidv7-schema
-      author: nirav.pistolwala
+      id: init-uuidv7-schema
+      author: gavi
       comment: Schema optimized for UUIDv7 Primary Keys and Opaque Cursors
       changes:
         - createTable:
