@@ -57,11 +57,14 @@ public class ProcessedEvent {
     private String errorDetails;
 
 
-    public ProcessedEvent(UUID id, UUID keyId, UUID eventId, String wDash) {
+    public ProcessedEvent(UUID id, UUID keyId, UUID eventId, String wDash,
+                          ProcessingStatus processingStatus, String errorDetails) {
         this.id = id;
         this.keyId = keyId;
         this.eventId = eventId;
         this.wDash = wDash;
+        this.processingStatus = processingStatus;
+        this.errorDetails = errorDetails;
     }
 
     @Override

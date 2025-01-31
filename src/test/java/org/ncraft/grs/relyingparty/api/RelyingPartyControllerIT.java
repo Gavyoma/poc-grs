@@ -30,6 +30,7 @@ import org.ncraft.grs.revocation.domain.RevocationKey;
 import org.ncraft.grs.revocation.infrastructure.RevocationKeyRepository;
 import org.ncraft.grs.wcprocessor.domain.ProcessedEvent;
 import org.ncraft.grs.wcprocessor.domain.ProcessedEventRepository;
+import org.ncraft.grs.wcprocessor.domain.ProcessingStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
@@ -116,7 +117,9 @@ class RelyingPartyControllerIT {
                             UUID.randomUUID(),
                             key.getId(),
                             rpEvent.getId(),
-                            wDashes[i]
+                            wDashes[i],
+                            ProcessingStatus.SUCCESS,
+                            ""
                     );
                 })
                 .toList();
