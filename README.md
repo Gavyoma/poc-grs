@@ -57,6 +57,10 @@ Run all tests (Unit and Integration):
 ./gradlew build
 ```
 
+## Configuration
+
+This application is configured via the `src/main/resources/application.yaml` file.
+
 ## Submit Global Revocation Key
 
 Once the application is running, you can submit the Global Revocation Key using the following URL:
