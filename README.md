@@ -1,4 +1,4 @@
-# Global Revocation Server
+# Global Revocation Server FIDO2
 
 ## Description
 
