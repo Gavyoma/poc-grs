@@ -24,3 +24,6 @@ target/
 # Gradle
 .gradle/
 build/
+
+# Dev scripts
+local-*.sh
