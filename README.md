@@ -1,3 +1,6 @@
+This repository contains the proof-of-concept implementation for the Authenticator FIDO2.
+It provides supplementary material for our research paper, "Secure and Privacy-Preserving Global Revocation for FIDO2-based Systems".
+
 # Pico FIDO (Modified - GPLv3)
 
 This is a **modified version** of [pico-fido](https://github.com/polhenarejos/pico-fido)  
