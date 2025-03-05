@@ -4,7 +4,7 @@ It provides supplementary material for our research paper, "Secure and Privacy-P
 <details>
   <summary><strong> 📸 Click to view screenshots 📸 </strong></summary>
 
-### Key Submission
+### PICO with Global Revocation Display
   <img src="docs/images/pico-with-display.webp" alt="Photo showing PICO with Global Revocation Display" width="400">
 </details>
 
