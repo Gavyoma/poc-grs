@@ -20,3 +20,8 @@
 .Trashes
 .stignore
 **/.DS_Store
+
+# =========================
+# Dev scripts
+# =========================
+local-*.sh
