@@ -1,0 +1,100 @@
+name: Reproducible binary
+
+# This workflow waits for release signatures to appear on Maven Central,
+# then rebuilds the artifacts and verifies them against those signatures,
+# and finally uploads the signatures to the GitHub release.
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  download:
+    name: Download keys and signatures
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Fetch keys
+      run: gpg --no-default-keyring --keyring ./yubico.keyring --keyserver hkps://keys.openpgp.org --recv-keys 57A9DEED4C6D962A923BB691816F3ED99921835E
+
+    - name: Download signatures from Maven Central
+      timeout-minutes: 60
+      run: |
+        until wget https://repo1.maven.org/maven2/com/yubico/webauthn-server-attestation/${{ github.ref_name }}/webauthn-server-attestation-${{ github.ref_name }}.jar.asc; do sleep 180; done
+        until wget https://repo1.maven.org/maven2/com/yubico/webauthn-server-core/${{ github.ref_name }}/webauthn-server-core-${{ github.ref_name }}.jar.asc; do sleep 180; done
+
+    - name: Store keyring and signatures as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: keyring-and-signatures
+        retention-days: 1
+        path: |
+          yubico.keyring
+          *.jar.asc
+
+  verify:
+    name: Verify signatures (JDK ${{ matrix.java }} ${{ matrix.distribution }})
+    needs: download
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        java: ["17.0.10"]
+        distribution: [temurin, zulu, microsoft]
+
+    steps:
+    - name: check out code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.ref_name }}
+
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ matrix.java }}
+        distribution: ${{ matrix.distribution }}
+
+    - name: Build jars
+      run: |
+        java --version
+        ./gradlew jar
+
+    - name: Print checksums
+      run: |
+        for sumprog in md5sum sha1sum sha256sum; do
+          echo $sumprog
+          $sumprog webauthn-server-attestation/build/libs/webauthn-server-attestation-${{ github.ref_name }}.jar
+          $sumprog webauthn-server-core/build/libs/webauthn-server-core-${{ github.ref_name }}.jar
+        done
+
+    - name: Retrieve keyring and signatures
+      uses: actions/download-artifact@v4
+      with:
+        name: keyring-and-signatures
+
+    - name: Verify signatures from Maven Central
+      run: |
+        gpg --no-default-keyring --keyring ./yubico.keyring --verify webauthn-server-attestation-${{ github.ref_name }}.jar.asc webauthn-server-attestation/build/libs/webauthn-server-attestation-${{ github.ref_name }}.jar
+        gpg --no-default-keyring --keyring ./yubico.keyring --verify webauthn-server-core-${{ github.ref_name }}.jar.asc webauthn-server-core/build/libs/webauthn-server-core-${{ github.ref_name }}.jar
+
+  upload:
+    name: Upload signatures to GitHub
+    needs: verify
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write  # Allow uploading release artifacts
+
+    steps:
+    - name: Retrieve signatures
+      uses: actions/download-artifact@v4
+      with:
+        name: keyring-and-signatures
+
+    - name: Upload signatures to GitHub
+      run: |
+        RELEASE_DATA=$(curl -H "Authorization: Bearer ${{ github.token }}" ${{ github.api_url }}/repos/${{ github.repository }}/releases/tags/${{ github.ref_name }})
+        UPLOAD_URL=$(jq -r .upload_url <<<"${RELEASE_DATA}" | sed 's/{?name,label}//')
+
+        curl -X POST -H "Authorization: Bearer ${{ github.token }}" -H 'Content-Type: text/plain' --data-binary @webauthn-server-attestation-${{ github.ref_name }}.jar.asc "${UPLOAD_URL}?name=webauthn-server-attestation-${{ github.ref_name }}.jar.asc"
+        curl -X POST -H "Authorization: Bearer ${{ github.token }}" -H 'Content-Type: text/plain' --data-binary @webauthn-server-core-${{ github.ref_name }}.jar.asc "${UPLOAD_URL}?name=webauthn-server-core-${{ github.ref_name }}.jar.asc"

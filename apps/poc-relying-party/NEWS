@@ -1,0 +1,1125 @@
+== Version 2.6.0 (unreleased) ==
+
+New features:
+
+* Added method `getParsedPublicKey(): java.security.PublicKey` to
+  `RegistrationResult` and `RegisteredCredential`.
+ ** Thanks to Jakob Heher (A-SIT) for the contribution, see
+    https://github.com/Yubico/java-webauthn-server/pull/299
+* Added enum parsing functions:
+ ** `AuthenticatorAttachment.fromValue(String): Optional<AuthenticatorAttachment>`
+ ** `PublicKeyCredentialType.fromId(String): Optional<PublicKeyCredentialType>`
+ ** `ResidentKeyRequirement.fromValue(String): Optional<ResidentKeyRequirement>`
+ ** `TokenBindingStatus.fromValue(String): Optional<TokenBindingStatus>`
+ ** `UserVerificationRequirement.fromValue(String): Optional<UserVerificationRequirement>`
+* Added public builder to `CredentialPropertiesOutput`.
+* Added public factory function
+  `LargeBlobRegistrationOutput.supported(boolean)`.
+* Added public factory functions to `LargeBlobAuthenticationOutput`.
+* Added `hints` property to `StartRegistrationOptions`, `StartAssertionOptions`,
+  `PublicKeyCredentialCreationOptions` and `PublicKeyCredentialRequestOptions`,
+  and class `PublicKeyCredentialHint` to support them, to support the `hints`
+  parameter introduced in WebAuthn L3:
+  https://www.w3.org/TR/2023/WD-webauthn-3-20230927/#dom-publickeycredentialcreationoptions-hints
+* (Experimental) Added option `isSecurePaymentConfirmation(boolean)` to
+  `FinishAssertionOptions`. When set, `RelyingParty.finishAssertion()` will
+  adapt the validation logic for a Secure Payment Confirmation (SPC) response
+  instead of an ordinary WebAuthn response. See the JavaDoc for details.
+ ** NOTE: Experimental features may receive breaking changes without a major
+    version increase.
+* (Experimental) Added a new suite of interfaces, starting with
+  `CredentialRepositoryV2`. `RelyingParty` can now be configured with a
+  `CredentialRepositoryV2` instance instead of a `CredentialRepository`
+  instance. This changes the result of the `RelyingParty` builder to
+  `RelyingPartyV2`. `CredentialRepositoryV2` and `RelyingPartyV2` enable a suite
+  of new features:
+ ** `CredentialRepositoryV2` does not assume that the application has usernames,
+    instead username support is modular. In addition to the
+    `CredentialRepositoryV2`, `RelyingPartyV2` can be optionally configured with
+    a `UsernameRepository` as well. If a `UsernameRepository` is not set, then
+    `RelyingPartyV2.startAssertion(StartAssertionOptions)` will fail at runtime
+    if `StartAssertionOptions.username` is set.
+ ** `CredentialRepositoryV2` uses a new interface `CredentialRecord` to
+    represent registered credentials, instead of the concrete
+    `RegisteredCredential` class (although `RegisteredCredential` also
+    implements `CredentialRecord`). This provides implementations greater
+    flexibility while also automating the type conversion to
+    `PublicKeyCredentialDescriptor` needed in `startRegistration()` and
+    `startAssertion()`.
+ ** `RelyingPartyV2.finishAssertion()` returns a new type `AssertionResultV2`
+    with a new method `getCredential()`, which returns the `CredentialRecord`
+    that was verified. The return type of `getCredential()` is generic and
+    preserves the concrete type of `CredentialRecord` returned by the
+    `CredentialRepositoryV2` implementation.
+ ** NOTE: Experimental features may receive breaking changes without a major
+    version increase.
+* (Experimental) Added property `RegisteredCredential.transports`.
+ ** NOTE: Experimental features may receive breaking changes without a major
+    version increase.
+* (Experimental) Added property `credProps.authenticatorDisplayName`.
+ ** NOTE: Experimental features may receive breaking changes without a major
+    version increase.
+* (Experimental) Added `credProps` extension to assertion extension outputs.
+
+
+== Version 2.5.3 ==
+
+`webauthn-server-attestation`:
+
+Fixes:
+
+* `FidoMetadataDownloader` no longer rejects FIDO MDS metadata BLOBs with
+  unknown properties.
+
+
+== Version 2.5.2 ==
+
+Fixes:
+
+* Allow unknown properties in `credProps` client extension output.
+
+
+== Version 2.5.1 ==
+
+Changes:
+
+* Dropped dependency on COSE-Java.
+* Fixed incompatibility with Jackson version 2.17.0-rc1.
+
+
+== Version 2.5.0 ==
+
+`webauthn-server-core`:
+
+Breaking changes to experimental features:
+
+* Added Jackson annotation `@JsonProperty` to method
+  `RegisteredCredential.isBackedUp()`, changing the property name from
+  `backedUp` to `backupState`. `backedUp` is still accepted during
+  deserialization but will no longer be emitted during serialization.
+
+New features:
+
+* Added method `.isUserVerified()` to `RegistrationResult` and `AssertionResult`
+  as a shortcut for accessing the UV flag in authenticator data.
+* Updated README and JavaDoc to use the "passkey" term and provide more guidance
+  around passkey use cases.
+* Added `Automatic-Module-Name` to jar manifest.
+
+Fixes:
+
+* `AuthenticatorAttestationResponse` now tolerates and ignores properties
+  `"publicKey"` and `"publicKeyAlgorithm"` during JSON deserialization. These
+  properties are emitted by the `PublicKeyCredential.toJSON()` method added in
+  WebAuthn Level 3.
+* Relaxed Guava dependency version constraint to include major version 32.
+* `RelyingParty.finishAssertion` now behaves the same if
+  `StartAssertionOptions.allowCredentials` is explicitly set to a present, empty
+  list as when absent.
+
+
+`webauthn-server-attestation`:
+
+New features:
+
+* Added option `verifyDownloadsOnly(boolean)` to `FidoMetadataDownloader`. When
+  set to `true`, the BLOB signature will not be verified when loading a BLOB
+  from cache or when explicitly given. Default setting is `false`, which
+  preserves the previous behaviour.
+* Added `Automatic-Module-Name` to jar manifest.
+
+Fixes:
+
+* Made Jackson setting `PROPAGATE_TRANSIENT_MARKER` unnecessary for JSON
+  serialization with Jackson version 2.15.0-rc1 and later.
+
+
+== Version 2.4.1 ==
+
+Changes:
+
+* Added explicit version constraint on `jackson-bom`.
+
+Fixes:
+
+* Fixed incompatibility with Jackson version 2.15.0-rc1 and later.
+* Fixed linking issue when running in Java 8.
+
+
+== Version 2.4.0 ==
+
+`webauthn-server-core`:
+
+New features:
+
+* Added support for RS384 and RS512 signature algorithms.
+ ** Thanks to GitHub user JohnnyJayJay for the contribution, see
+    https://github.com/Yubico/java-webauthn-server/pull/235
+* Added `userHandle` field to `AssertionRequest` as part of the second bug fix
+  below. `userHandle` is mutually exclusive with `username`. This was originally
+  released in pre-release `1.12.3-RC3`, but was accidentally left out of the
+  `1.12.3` release.
+
+Fixes:
+
+* During `RelyingParty.finishRegistration()` if an `attestationTrustSource` is
+  configured, if the `aaguid` in the authenticator data is zero, the call to
+  `AttestationTrustSource.findTrustRoots` will fall back to reading the AAGUID
+  from the attestation certificate if possible.
+* Fixed bug in `RelyingParty.finishAssertion` where if
+  `StartAssertionOptions.userHandle` was set, it did not propagate to
+  `RelyingParty.finishAssertion` and caused an error saying username and user
+  handle are both absent unless a user handle was returned by the authenticator.
+  This was originally released in pre-release `1.12.3-RC3`, but was accidentally
+  left out of the `1.12.3` release.
+* Fixed regression in
+  `PublicKeyCredentialCreationOptions.toCredentialsCreateJson()`, which has not
+  been emitting a `requireResidentKey` member since version `2.0.0`. This meant
+  the JSON output was not backwards compatible with browsers that only support
+  the Level 1 version of the WebAuthn spec.
+
+
+`webauthn-server-attestation`:
+
+Fixes:
+
+* `findEntries` and `findTrustRoots` methods in `FidoMetadataService` now
+  attempt to read AAGUID from the attestation certificate if the `aaguid`
+  argument is absent or zero.
+* Method `FidoMetadataService.Filters.allOf` now has `@SafeVarargs` annotation.
+
+
+== Version 2.3.0 ==
+
+New features:
+
+* (Experimental) Added `authenticatorAttachment` property to response objects:
+ ** NOTE: Experimental features may receive breaking changes without a major
+    version increase.
+ ** Added method `getAuthenticatorAttachment()` to `PublicKeyCredential` and
+    corresponding builder method
+    `authenticatorAttachment(AuthenticatorAttachment)`.
+ ** Added method `getAuthenticatorAttachment()` to `RegistrationResult` and
+    `AssertionResult`, which echo `getAuthenticatorAttachment()` from the
+    corresponding `PublicKeyCredential`.
+ ** Thanks to GitHub user luisgoncalves for the contribution, see
+    https://github.com/Yubico/java-webauthn-server/pull/250
+
+Other:
+
+* Fixed the README description of SemVer exceptions: `@Deprecated` features are
+  still part of the public API unless they also have an `EXPERIMENTAL:` tag in
+  JavaDoc.
+* Brought `com.yubico.webauthn` package JavaDoc up to date with new library
+  features.
+
+
+== Version 2.2.0 ==
+
+`webauthn-server-core`:
+
+Changes:
+
+* Changed internal structure of `RegistrationResult` and `AssertionResult`. This
+  may affect you if you use Jackson or similar tools to serialize these values
+  to JSON, for example. This is not an officially supported use case and thus
+  does not warrant a major version bump.
+* Removed methods `RegistrationResult.toBuilder()` and
+  `AssertionResult.toBuilder()`. Both had package-private return types, and thus
+  were not usable by outside callers.
+
+New features:
+
+* (Experimental) Added support for the new `BE` (backup eligible) and `BS`
+  (backup state) flags in authenticator data:
+ ** NOTE: Experimental features may receive breaking changes without a major
+    version increase.
+ ** Added `BE` and `BS` properties to `AuthenticatorDataFlags`, reflecting the
+    respective flags (bits 0x08 and 0x10).
+ ** Added methods `isBackupEligible()` and `isBackedUp()` to
+    `RegistrationResult` and `AssertionResult`, reflecting respectively the `BE`
+    and `BS` flags.
+ ** Added properties `backupEligible` and `backupState`, getters
+    `isBackupEligible()` and `isBackedUp()`, and corresponding builder methods
+    to `RegisteredCredential`. `RelyingParty.finishAssertion(...)` will now
+    validate that if `RegisteredCredential.isBackupEligible()` is present, then
+    the `BE` flag of any assertion of that credential must match the stored
+    value.
+
+Fixes:
+
+* Fixed TPM attestation verification rejecting attestation certificates with TPM
+  Device Attributes split between multiple RelativeDistinguishedName structures
+  in the Subject Alternative Names extension.
+ ** Thanks to Oussama Zgheb for the contribution, see
+    https://github.com/Yubico/java-webauthn-server/pull/241
+* Fixed various errors in JavaDoc.
+
+
+`webauthn-server-attestation`:
+
+Fixes:
+
+* Improved documentation of guarantees provided by `FidoMetadataDownloader` and
+  required of its parameters.
+
+
+== Version 2.1.0 ==
+
+`webauthn-server-core`:
+
+Changes:
+
+* Log messages on attestation certificate path validation failure now include
+  the attestation object.
+
+Deprecations:
+
+* Deprecated method `AssertionResult.getCredentialId(): ByteArray`. Use
+  `.getCredential().getCredentialId()` instead.
+* Deprecated method `AssertionResult.getUserHandle(): ByteArray`. Use
+  `.getCredential().getUserHandle()` instead.
+
+New features:
+
+* Added function `COSEAlgorithmIdentifier.fromPublicKey(ByteArray)`.
+* Added method `AssertionResult.getCredential(): RegisteredCredential`.
+* Added support for the `"tpm"` attestation statement format.
+* Added support for ES384 and ES512 signature algorithms.
+* Added property `policyTreeValidator` to `TrustRootsResult`. If set, the given
+  predicate function will be used to validate the certificate policy tree after
+  successful attestation certificate path validation. This may be required for
+  some JCA providers to accept attestation certificates with critical
+  certificate policy extensions. See the JavaDoc for
+  `TrustRootsResultBuilder.policyTreeValidator(Predicate)` for more information.
+* Added enum value `AttestationConveyancePreference.ENTERPRISE`.
+* (Experimental) Added constant `AuthenticatorTransport.HYBRID`.
+
+Fixes:
+
+* Fixed various typos and mistakes in JavaDocs.
+* Moved version constraints for test dependencies from meta-module
+  `webauthn-server-parent` to unpublished test meta-module.
+* `yubico-util` dependency removed from downstream compile scope.
+* Fixed missing JavaDoc on `TrustRootsResult` getters and builder setters.
+
+
+`webauthn-server-attestation`:
+
+Changes:
+
+* The `AuthenticatorToBeFiltered` argument of the `FidoMetadataService` runtime
+  filter now omits zero AAGUIDs.
+* Promoted log messages in `FidoMetadataDownloader` about BLOB signature failure
+  and cache corruption from DEBUG level to WARN level.
+
+New features:
+
+* Added method `FidoMetadataDownloader.refreshBlob()`.
+
+Fixes:
+
+* Fixed various typos and mistakes in JavaDocs.
+* `FidoMetadataDownloader` now verifies the SHA-256 hash of the cached trust
+  root certificate, as promised in the JavaDoc of `useTrustRootCacheFile` and
+  `useTrustRootCache`.
+* BouncyCastle dependency dropped.
+* Guava dependency dropped (but still remains in core module).
+* If BLOB download fails, `FidoMetadataDownloader` now correctly falls back to
+  cache if available.
+
+
+== Version 2.0.0 ==
+
+This release removes deprecated APIs and changes some defaults to better align
+with the L2 version of the WebAuthn spec. It also adds a new major feature:
+optional integration with the FIDO Metadata Service for retrieving authenticator
+metadata and attestation trust roots. See below for details.
+
+`webauthn-server-core`:
+
+Breaking changes:
+
+* Deleted deprecated `icon` field in `RelyingPartyIdentity` and `UserIdentity`,
+  and its associated methods.
+* Deleted deprecated `AuthenticatorSelectionCriteria` methods
+  `builder().requireResidentKey(boolean)` and `isRequireResidentKey()`.
+* `RelyingParty` parameter `allowUnrequestedExtensions` removed. The library
+  will now always accept unrequested extensions.
+* Class `ClientAssertionExtensionOutputs` now silently ignores unknown
+  extensions instead of rejecting them.
+* `webauthn-server-core-minimal` module deleted.
+* `webauthn-server-core` no longer depends on BouncyCastle and will no longer
+  attempt to automatically fall back to it. Therefore, EdDSA keys are no longer
+  supported by default in JDK 14 and earlier. The library will log warnings if
+  configured for algorithms with no JCA provider available, in which case the
+  dependent project may need to add additional dependencies and configure JCA
+  providers externally.
+* Enum value `AttestationType.ECDAA` removed without replacement.
+* Deleted methods `RegistrationResult.getWarnings()` and
+  `AssertionResult.getWarnings()` since they are now always empty.
+* Framework for attestation metadata has been fully overhauled. See the
+  `webauthn-server-attestation` module documentation for the new ways to work
+  with attestation metadata:
+ ** Deleted method `RegistrationResult.getAttestationMetadata()`.
+ ** Interface `MetadataService` replaced with `AttestationTrustSource`, and
+    optional `RelyingParty` setting `.metadataService(MetadataService)` replaced
+    with `.attestationTrustSource(AttestationTrustSource)`.
+ ** Deleted types `Attestation` and `Transport`.
+ ** Deleted method `AuthenticatorTransport.fromU2fTransport`.
+* `RelyingParty.finishRegistration()` now uses a JCA `CertPathValidator` to
+  validate attestation certificate paths, if an attestation trust source has
+  been configured. This requires a compatible JCA provider, but should already
+  be available in most environments.
+* Classes in package `com.yubico.fido.metadata` moved to
+  `com.yubico.webauthn.extension.uvm` to avoid name clash with
+  `webauthn-server-attestation` module in JPMS.
+* Changed return type of
+  `PublicKeyCredentialRequestOptions.getUserVerification()`,
+  `AuthenticatorSelectionCriteria.getUserVerification()` and
+  `AuthenticatorSelectionCriteria.getResidentKey()` to `Optional`, and changed
+  defaults for `userVerification` and `residentKey` to empty. This means we
+  won't inadvertently suppress warnings that browsers might issue in the browser
+  console if for example `userVerification` is not set explicitly.
+
+New features:
+
+* Method `getAaguid()` added to `RegistrationResult`.
+* Method `getAttestationTrustPath()` added to `RegistrationResult`.
+* Setting `.clock(Clock)` added to `RelyingParty`. It is used for attestation
+  path validation if an `attestationTrustSource` is configured.
+
+
+`webauthn-server-attestation`:
+
+Breaking changes:
+
+* Types `AttestationResolver`, `CompositeAttestationResolver`,
+  `CompositeTrustResolver`, `DeviceMatcher`, `ExtensionMatcher`,
+  `FingerprintMatcher`, `MetadataObject`, `SimpleAttestationResolver`,
+  `SimpleTrustResolver`, `StandardMetadataService` and `TrustResolver` deleted
+  in favour of a new attestation metadata framework. Some of the functionality
+  is retained as the new `YubicoJsonMetadataService` class in the
+  `webauthn-server-demo` subproject in the library sources, but no longer
+  exposed in either library module.
+* Library no longer contains a `/metadata.json` resource.
+
+New features:
+
+* New types `FidoMetadataService` and `FidoMetadataDownloader` which integrate
+  with the FIDO Metadata Service for retrieving authenticator metadata and
+  attestation trust roots.
+
+
+== Version 1.12.4 ==
+
+Deprecated features:
+
+* Option `RelyingParty.allowUnrequestedExtensions` deprecated. The `false`
+  setting (default) is not compatible with WebAuthn Level 2 since authenticators
+  are now always allowed to add unsolicited extensions. The next major version
+  release will remove this option and always behave as if the option had been
+  set to `true`.
+* Enum value `AttestationType.ECDAA`. ECDAA was removed in WebAuthn Level 2.
+* Function `TokenBindingStatus.fromJsonString(String)` deprecated. It should not
+  have been part of the public API to begin with.
+
+
+== Version 1.12.3 ==
+
+Fixes:
+
+* Fixed `PublicKeyCredential` failing to parse from JSON if an
+  `"authenticatorAttachment"` attribute was present.
+* Bumped Jackson dependency to version [2.13.2.1,3) in response to
+  CVE-2020-36518
+* Fixed bug in `RelyingParty.finishAssertion` that would throw a nondescript
+  `NoSuchElementException` if username and user handle are both absent, instead
+  of an `IllegalArgumentException` with a better error message.
+
+
+== Version 1.12.2 ==
+
+Fixes:
+
+* `com.upokecenter:cbor` dependency bumped to minimum version 4.5.1 due to a
+  known vulnerability, see: https://github.com/advisories/GHSA-fj2w-wfgv-mwq6
+* Fixed crash in `AuthenticatorData` deserialization with `com.upokecenter:cbor`
+  versions later than 4.0.1
+
+
+== Version 1.12.1 ==
+
+Fixes:
+
+* `RelyingParty.finishAssertion()` no longer makes multiple (redundant) calls to
+  `CredentialRepository.lookup()`.
+
+
+== Version 1.12.0 ==
+
+New features:
+
+* New method `RegisteredCredential.builder().publicKeyEs256Raw(ByteArray)`. This
+  is a mutually exclusive alternative to `.publicKeyCose(ByteArray)`, for easier
+  backwards-compatibility with U2F-formatted (Raw ANSI X9.62) public keys.
+* "Migrating from U2F" section added to project README
+
+
+== Version 1.11.0 ==
+
+Deprecated features:
+
+* `AuthenticatorSelectionCriteria` methods
+  `builder().requireResidentKey(boolean)` and `isRequireResidentKey()`
+  deprecated in favor of a new option, see below.
+* The `icon` field in `RelyingPartyIdentity` and `UserIdentity`, and its
+  associated methods, are now deprecated. The corresponding property was removed
+  in WebAuthn Level 2.
+
+Deprecated features will be removed in the next major version release.
+
+Changes:
+
+* `RelyingParty.startAssertion()` no longer overwrites the `appid` extension
+  input in the `StartAssertionOptions` argument.
+* `RelyingParty.appId` setting now also activates the `appidExclude` extension in
+  addition to the `appid` extension.
+* `RelyingParty.startRegistration()` now enables the `credProps` extension by
+  default. The extension output, if any, is available as
+  `RegistrationResult.isDiscoverable()` and
+  `RegistrationResult.getClientExtensionOutputs().getCredProps()`.
+
+New features:
+
+* `RegistrationResult.keyId()` now includes `transports` if any were included in
+  the `AuthenticatorAttestatationResponse`. To get transports passed through,
+  call `PublicKeyCredential.response.getTransports()` on the client side after
+  successful registration, and add the result as the property
+  `response.transports` in the JSON passed into
+  `PublicKeyCredential.parseRegistrationResponseJson`. See the project README
+  for an example.
+* Added support for the `appidExclude`, `credProps`, `largeBlob` and `uvm`
+  extensions.
+* Added support for the new `authenticatorSelectionCriteria.residentKey` option:
+ ** Added method
+    `AuthenticatorSelectionCriteria.builder().residentKey(ResidentKeyRequirement)`.
+ ** Added method `AuthenticatorSelectionCriteria.getResidentKey()`.
+ ** Methods `builder().requireResidentKey(boolean)` and `isRequireResidentKey()`
+    deprecated in favor of the above two new methods.
+ ** The builder methods `requireResidentKey(boolean)` and
+    `residentKey(ResidentKeyRequirement)` both control one shared setting, which
+    sets both the `requireResidentKey` and `residentKey` options simultaneously
+    and in agreement with each other for backwards compatibility with older
+    browsers.
+* Added methods `PublicKeyCredentialCreationOptions.toCredentialsCreateJson()`,
+  `PublicKeyCredentialRequestOptions.toCredentialsGetJson()` and
+  `AssertionRequest.toCredentialsGetJson()` for serializing to JSON without
+  having to use Jackson directly.
+* Added methods `PublicKeyCredentialCreationOptions.toJson()` and
+  `.fromJson(String)` suitable for encoding to and decoding from JSON.
+* Added methods `AssertionRequest.toJson()` and `.fromJson(String)` suitable for
+  encoding to and decoding from JSON.
+* Added methods `StartAssertionOptions.builder().userHandle(ByteArray)` and
+  `.userHandle(Optional<ByteArray>)` as alternatives to `.username(String)` and
+  `.username(Optional<String>)`. The `userHandle` methods fill the same function
+  as, and are mutually exclusive with, the `username` methods.
+
+Fixes:
+
+* Added missing JavaDoc for `id` and `name` methods of initial
+  `RelyingPartyIdentityBuilder` stages.
+* Added and improved JavaDoc for required builder methods.
+* Javadoc for `TokenBindingInfo.id` incorrectly stated that the value is
+  base64url encoded.
+* Javadoc for `TokenBindingStatus.PRESENT` incorrectly referenced its own
+  (private) `id` member instead of `TokenBindingInfo.id`.
+* Improved JavaDoc for `StartRegistrationOptions.authenticatorSelection`
+* Improved JavaDoc for `RelyingParty.appid`
+* Make the `RelyingParty.validateSignatureCounter` JavaDoc also cover the
+  success case where stored and received signature count are both zero.
+
+
+== Version 1.10.1 ==
+
+webauthn-server-attestation:
+
+* Fixed name of YubiKey Bio - FIDO edition in attestation metadata.
+
+
+== Version 1.10.0 ==
+
+webauthn-server-attestation:
+
+* Added attestation metadata for YubiKey Bio.
+
+
+== Version 1.9.1 ==
+
+* Added missing `<dependencyManagement>` declaration to
+  `webauthn-server-attestation` and `webauthn-server-core` POMs.
+
+webauthn-server-attestation:
+
+* Added attestation metadata for YubiKey 5 FIPS series.
+
+
+== Version 1.9.0 ==
+
+webauthn-server-attestation:
+
+* Fixed that `SimpleAttestationResolver` would return empty transports when
+  transports are unknown.
+
+webauthn-server-core:
+
+* Added support for the `"apple"` attestation statement format.
+
+Other:
+
+* Dependency versions moved to new meta-module `webauthn-server-parent`. Users
+  should never need to depend on `webauthn-server-parent` directly.
+
+
+== Version 1.8.0 ==
+
+Changes:
+
+* BouncyCastle dependency is now optional.
+
+  In order to opt out, depend on `webauthn-server-core-minimal` instead of
+  `webauthn-server-core`.
+  This is not recommended unless you know your JVM includes JCA providers for
+  all signature algorithms.
+
+  Note that `webauthn-server-attestation` still depends on BouncyCastle.
+
+* Jackson deserializer for `PublicKeyCredential` now allows a `rawId` property
+  to be present if `id` is not present, or if `rawId` equals `id`.
+
+
+== Version 1.7.0 ==
+
+webauthn-server-attestation:
+
+* Updated name of AAGUID `2fc0579f811347eab116bb5a8db9202a` to "YubiKey 5/5C NFC"
+* Changed name of "YubiKey 5 Series security key" to "YubiKey 5 Series"
+
+webauthn-server-core:
+
+Changes:
+
+* Fixed crash on unknown attestation statement formats
+ ** Unless `RelyingParty.allowUntrustedAttestation` is set to `false`, unknown
+    attestation statements will now pass as untrusted attestations, instead of
+    throwing an IllegalArgumentException.
+* Disambiguated Jackson deserialization of class `AuthenticatorTransport`
+
+New features:
+
+* Class `RegisteredCredential` can now be serialized to and deserialized from
+  JSON.
+
+
+== Version 1.6.4 ==
+
+* Changed dependency declarations to version ranges
+* Bumped Guava dependency to version [24.1.1,30) in response to CVE-2018-10237
+
+
+== Version 1.6.3 ==
+
+webauthn-server-attestation:
+
+* Added new YubiKey AAGUIDs to metadata.json
+
+
+webauthn-server-core:
+
+* Bumped Jackson dependency to version 2.11.0 in response to CVEs:
+ ** CVE-2020-9546
+ ** CVE-2020-10672
+ ** CVE-2020-10969
+ ** CVE-2020-11620
+* Fixed incorrect JavaDoc on AssertionResult.isSignatureCounterValid(): it will
+  also return true if both counters are zero.
+
+
+== Version 1.6.2 ==
+
+* Fixed dependencies missing from release POM metadata
+
+
+== Version 1.6.1 ==
+
+Security fixes:
+
+* Bumped Jackson dependency to version 2.9.10.3 in response to CVE-2019-20330
+  and CVE-2020-8840
+
+
+== Version 1.6.0 ==
+
+Security fixes:
+
+* Bumped Jackson dependency to version 2.9.10.1 which has patched CVE-2019-16942
+
+`webauthn-server-core`:
+
+Bug fixes:
+
+* Fixed bug introduced in 1.4.0, which caused
+  `RegistrationResult.attestationMetadata` to always be empty.
+
+
+`webauthn-server-attestation`:
+
+* New enum constant `Transport.LIGHTNING`
+* Fixed transports field of YubiKey NEO/NEO-n in `metadata.json`.
+* Added YubiKey 5Ci to `metadata.json`.
+* Most `deviceUrl` fields in `metadata.json` changed to point to stable
+  addresses in Yubico knowledge base instead of dead redirects in store.
+
+
+== Version 1.5.0 ==
+
+Changes:
+
+* `RelyingParty` now makes an immutable copy of the `origins` argument, instead
+  of storing a reference to a possibly mutable value.
+* The enum `AuthenticatorTransport` has been replaced by a value class
+  containing methods and value constants equivalent to the previous enum.
+* The return type of `PublicKeyCredentialDescriptor.getTransports()` is now a
+  `SortedSet` instead of `Set`. The builder still accepts a plain `Set`.
+* Registration ceremony now verifies that the returned credential public key
+  matches one of the algorithms specified in
+  `RelyingParty.preferredPubkeyParams` and can be successfully parsed.
+
+New features:
+
+* Origin matching can now be relaxed via two new `RelyingParty` options:
+  * `allowOriginPort` (default `false`): Allow any port number in the origin
+  * `allowOriginSubdomain` (default `false`): Allow any subdomain of any origin
+    listed in `RelyingParty.origins`
+  * See JavaDoc for details and examples.
+* The new `AuthenticatorTransport` can now contain any string value as the
+  transport identifier, as required in the editor's draft of the L2 spec. See:
+  https://github.com/w3c/webauthn/pull/1275
+* Added support for RS1 credentials. Registration of RS1 credentials is not
+  enabled by default, but can be enabled by setting
+  `RelyingParty.preferredPubKeyCredParams` to a list containing
+  `PublicKeyCredentialParameters.RS1`.
+  * New constant `PublicKeyCredentialParameters.RS1`
+  * New constant `COSEAlgorithmIdentifier.RS1`
+
+
+== Version 1.4.1 ==
+
+Packaging fixes:
+
+* Fixed dependency declarations so API dependencies are correctly propagated as
+  compile-time dependencies of dependent projects.
+* Fixed Specification-Version release date in webauthn-server-core jar manifest.
+
+
+== Version 1.4.0 ==
+
+Changes:
+
+* Class `com.yubico.internal.util.WebAuthnCodecs` is no longer public. The
+  package `com.yubico.internal.util` was already declared non-public in JavaDoc,
+  but this is now also enforced via Java visibility rules.
+* Class `com.yubico.webauthn.meta.Specification.SpecificationBuilder` is no
+  longer public. It was never intended to be, although this was not documented
+  explicitly.
+* Default value for `RelyingParty.preferredPubKeyParams` changed from `[ES256,
+  RS256]` to `[ES256, EdDSA, RS256]`
+* Data classes no longer use `Optional` internally in field types. This should
+  not meaningfully affect the public API, but might improve compatibility with
+  frameworks that use reflection.
+
+New features:
+
+* Added support for Ed25519 signatures.
+* New constants `COSEAlgorithmIdentifier.EdDSA` and
+  `PublicKeyCredentialParameters.EdDSA`
+* Artifacts are now built reproducibly; fresh builds from source should now be
+  verifiable by signature files from Maven Central.
+
+Security fixes:
+
+* Bumped Jackson dependency to version 2.9.9.3 which has patched CVE-2019-12814,
+  CVE-2019-14439, CVE-2019-14379
+
+
+== Version 1.3.0 ==
+
+Security fixes:
+
+* Bumped Jackson dependency to version 2.9.9 which has patched CVE-2019-12086
+
+New features:
+
+* New optional parameter `timeout` added to `StartRegistrationOptions` and
+  `StartAssertionOptions`
+
+Bug fixes:
+
+* Fixed polarity error in javadoc for `RelyingParty.allowUntrustedAttestation`
+
+
+== Version 1.2.0 ==
+
+New features:
+
+* RSA keys are now supported.
+* New constructor functions `PublicKeyCredential.parseRegistrationResponseJson` and `.parseAssertionResponseJson`
+  * So users don't have to deal with the `TypeReference`s imposed by the generics, unless they want to.
+
+Bug fixes:
+
+* `android-key` attestation statements now don't throw an exception if
+  `allowUntrustedAttestation` is set to `true`.
+* `tpm` attestation statements now don't throw an exception if
+  `allowUntrustedAttestation` is set to `true`.
+
+
+== Version 1.1.0 ==
+
+Changed behaviours:
+
+* `AssertionExtensionInputsBuilder.appid(Optional<AppId>)` now fails fast if the
+  argument is `null`
+* `ClientAssertionExtensionOutputsBuilder.appid(Optional<Boolean>)` now fails
+  fast if the argument is `null`
+
+
+New features:
+
+* Public API methods that take `Optional` parameters now come with
+  `Optional`-less aliases.
+
+
+== Version 1.0.1 ==
+
+Bugfixes:
+
+* Registration no longer fails for unimplemented attestation statement formats
+  if `allowUnknownAttestation` is set to `true`.
+ ** Registration still fails for attestation statement formats not defined in
+    the WebAuthn Level 1 spec.
+
+
+== Version 1.0.0 ==
+
+* Fixed URL in artifact POM
+* Improved a few javadoc wordings
+
+
+== Version 0.8.0 ==
+
+Possibly breaking changes:
+
+* User Presence (UP) is now always required by the spec, not only when UV is not
+  required; implementation updated to reflect this.
+
+
+New features:
+
+* Added support for `android-safetynet` attestation statement format
+ ** Thanks to Ren Lin for the contribution, see https://github.com/Yubico/java-webauthn-server/pull/5
+* Implementation updated to reflect Proposed Recommendation version of the spec,
+  released 2019-01-17
+
+Bug fixes:
+
+* Fixed validation of zero-valued assertion signature counter
+ ** Previously, a zero-valued assertion signature counter was always regarded as
+    valid. Now, it is only considered valid if the stored signature counter is
+    also zero.
+
+
+== Version 0.7.0 ==
+
+=== `webauthn-server-attestation` ===
+
+* Added attestation metadata for Security Key NFC by Yubico
+
+=== `webauthn-server-core` ===
+
+Breaking changes:
+
+* Deleted parameter `RelyingParty.verifyTypeAttribute`. This was added as a
+  workaround while browser implementations were incomplete, and should never be
+  used in production.
+* Replaced field `RegisteredCredential.publicKey: PublicKey` with
+  `publicKeyCose: ByteArray`. This means the library user no longer needs to
+  parse the public key before passing it back into the library.
+* `RelyingParty.finishAssertion` now throws `InvalidSignatureCountException`
+  instead of its supertype `AssertionFailedException` when signature count
+  validation is enabled and the received signature count is invalid.
+
+New features:
+
+* New parameter `StartAssertionOptions.userVerification` which is forwarded into
+  `PublicKeyCredentialRequestOptions` by `RelyingParty.startAssertion`
+
+
+== Version 0.6.0 ==
+
+Breaking changes:
+
+* Classes moved from package `com.yubico.webauthn.data` to `com.yubico.webauthn`:
+ **  `AssertionRequest`
+ **  `AssertionResult`
+ **  `RegistrationResult`
+* All public classes are now final.
+* All builders now enforce mandatory arguments at compile time. Some usages may
+  therefore need to adjust the order of calls on the builder instance.
+ ** Static method `Attestation.trusted(boolean)` replaced with `.builder()` with
+    `.trusted(boolean)` as builder method instead
+ ** `AuthenticatorAssertionResponse` constructor is now private.
+ ** `AuthenticatorAttestationResponse` constructor is now private.
+ ** `PublicKeyCredentialDescriptor` constructor is now private.
+ ** `PublicKeyCredentialRequestOptions` constructor is now private.
+* All classes that take collections as constructor (builder) arguments now make
+  shallow copies of those collections, so that mutations of the collections
+  don't propagate into the class instance.
+* Deleted interface `Crypto` and constructor parameter `crypto` of `RelyingParty`
+* Deleted interface `ChallengeGenerator` and constructor parameter
+  `challengeGenerator` of `RelyingParty`
+* Updated implementation to agree with current editor's draft of the spec
+ ** Renamed class `AttestationData` to `AttestedCredentialData`
+ ** Enum constant `TokenBindingStatus.NOT_SUPPORTED` deleted; this is now
+    instead signaled by a missing value
+ ** Parameter `RelyingParty.allowMissingTokenBinding` therefore removed
+ ** Enum constant `AttestationType.PRIVACY_CA` renamed to `ATTESTATION_CA`
+* Renamed class `AuthenticationDataFlags` to `AuthenticatorDataFlags`
+* Deleted constant `UserVerificationRequirement.DEFAULT`
+* Deleted method `AttestationObject.getAuthData()`
+* Changed type of field `RelyingParty.origins` from `List` to `Set`
+* Fixed (reduced) visibility of `RegisteredCredential` fields
+* Class `MetadataObject` moved to `webauthn-server-attestation` module
+* Updated and greatly expanded Javadoc
+
+New features:
+
+* Constructor parameter `pubKeyCredParams` of `RelyingParty` is now optional
+  with a default value.
+* Constructor parameter `origins` of `RelyingParty` is now optional and defaults
+  to a list whose only element is the RP ID prefixed with `https://`.
+* All classes with a builder now also have a `.toBuilder()` method.
+
+
+== Version 0.5.0 ==
+
+=== `webauthn-server-core` ===
+
+New features:
+
+* `PackedAttestationStatementVerifier` now supports SHA256WithRSA signatures
+
+Bug fixes:
+
+* `PublicKeyCredentialDescriptor.compareTo` is now consistent with equals
+* `AuthenticatorData` constructor should now throw more descriptive exceptions
+  instead of raw `ArrayIndexOutOfBoundsException`s
+
+
+=== `webauthn-server-attestation` ===
+
+Breaking changes:
+
+* Interface `MetadataResolver` replaced with interfaces `AttestationResolver`
+  and `TrustResolver`
+ ** Class `SimpleResolver` split into `SimpleAttestationResolver` and
+    `SimpleTrustResolver`
+  *** Both of these classes now take the metadata as a constructor parameter
+      instead of exposing `addMetadata` methods
+ ** Class `CompositeResolver` split into `CompositeAttestationResolver` and
+    `CompositeTrustResolver`
+* Class `StandardMetadataService` overhauled
+
+
+== Version 0.4.0 ==
+
+Breaking changes:
+
+* Field `StartRegistrationOptions.requireResidentKey: boolean` replaced with
+  field `authenticatorSelection: Optional<AuthenticatorSelectionCriteria>`
+
+
+== Version 0.3.0 ==
+
+* Major API overhaul; public API changes include but are not limited to:
+ ** Reorganised package structure
+ ** `CredentialRepository.getCredentialIdsForUsername(String)` now returns `Set`
+    instead of `List`
+ ** Most data classes now expose a builder instead of a public constructor
+ ** Shortcut constants added to `COSEAlgorithmIdentifier` and
+    `PublicKeyCredentialParameters`
+ ** Exception `U2fBadConfigurationException` renamed to
+    `BadConfigurationException`
+ ** `RelyingParty.startRegistration` now accepts one `StartRegistrationOptions`
+    parameter instead of several parameters
+ ** `RelyingParty.finishRegistration` now accepts one
+    `FinishRegistrationOptions` parameter instead of several parameters
+ ** `RelyingParty.startAssertion` now accepts one `StartAssertionOptions`
+    parameter instead of several parameters
+ ** `RelyingParty.finishAssertion` now accepts one `FinishAssertionOptions`
+    parameter instead of several parameters
+ ** `RelyingParty.finishRegistration` now throws checked
+    `RegistrationFailedException` instead of `IllegalArgumentException` on most
+    failures
+ ** `RelyingParty.finishAssertion` now throws checked
+    `AssertionFailedException` instead of `IllegalArgumentException` on most
+    failures
+ ** Class `MetadataResolver` replaced with interface
+ ** Constructor `CollectedClientData(JsonNode)` deleted
+ ** Parameters `StartRegistrationOptions.excludeCredentials` and
+    `StartAssertionOptions.allowCredentials` deleted; they are now discovered
+    automatically from the `CredentialRepository`. If custom control over
+    `excludeCredentials` or `allowCredentials` is needed, modify the
+    `PublicKeyCredentialCreationOptions` or `PublicKeyCredentialRequestOptions`
+    object manually.
+ ** `COSEAlgorithmIdentifier` is now an actual enum
+ ** Extensions are now passed and returned as domain objects instead of as Jackson
+    types
+ ** Type parameter added to `PublicKeyCredential` to express extensions type
+ ** Fields `CollectedClientData.authenticatorExtensions` and `.clientExtensions`
+    deleted
+* Fixed a bug in `AuthenticatorDataFlags` that caused the `ED` (0x80) flag to
+  never be set
+* All classes in `com.yubico.webauthn.data` can now be serialized and
+  deserialized using Jackson
+ ** JSON output has been slightly changed:
+  *** `AttestationObject`, `AuthenticatorData` and `CollectedClientData` now serialize back to
+    Base64Url encoded bytes instead of to JSON objects
+  *** Member `_attestationObject` removed from serialized
+      `AuthenticatorAttestationResponse`
+  *** Member `authenticatorData` removed from serialized
+      `AuthenticatorAttestationResponse`
+* New methods `ByteArray.size(): int` and `.isEmpty(): boolean`
+* `ByteArray` is now `Comparable` to itself
+* Added support for `appid` extension
+
+
+== Version 0.2.0 ==
+
+* Core library now recognises username as an internally relevant concept
+* Source code translated from Scala to Java
+* Too many other changes to count
+
+
+== Version 0.1.0 ==
+
+* First release of https://www.w3.org/TR/webauthn/[Web Authentication] support
+* Merged U2F subprojects into webauthn-server-core and deleted lots of unused code
+
+
+== java-u2flib-server version history ==
+
+This project was forked from https://developers.yubico.com/java-u2flib-server/[java-u2flib-server]. Below is the version history from before the fork.
+
+
+== Version 0.19.0 ==
+
+Breaking changes:
+
+* Overhauled exception hierarchy
+ ** New exception class: `U2fCeremonyException`
+ ** New exception class: `U2fRegistrationException extends U2fCeremonyException`
+ ** New exception class: `U2fAuthenticationException extends U2fCeremonyException`
+ ** The following exception classes now extend `U2fAuthenticationException`:
+  *** `DeviceCompromisedException`
+  *** `InvalidDeviceCounterException`
+  *** `NoEligableDevicesException`
+  *** `NoEligibleDevicesException`
+ ** `U2fBadConfigurationException` is now a checked exception
+ ** `U2fBadInputException` is now a checked exception, and is no longer thrown directly by the methods of `U2F`.
+  *** Methods of `U2F` now catch this exception and wrap it in a `U2fRegistrationException` or ``U2fAuthenticationException`.
+* `DeviceRegistration.getAttestationCertificate()` now returns `null` instead of throwing `NoSuchFieldException`
+* `static ClientData.getString(JsonNode, String)` now throws `U2fBadInputException` instead of `NullPointerException`, or if the returned field is not a `String` value
+* Some `AssertionError`s and `IllegalArgumentException`s are now `U2fBadInputException`s instead
+
+
+Improvements:
+
+* `BouncyCastleCrypto` now throws more descriptive exceptions
+
+
+Bug fixes:
+
+* Improved error handling in client data input validation
+ ** Thanks to Nicholas Wilson for the contribution, see https://github.com/Yubico/java-u2flib-server/pull/25
+
+
+== Version 0.18.1 ==
+
+* Lombok now longer leaks into runtime dependencies
+
+
+== Version 0.18.0 ==
+
+=== u2flib-server-core ===
+
+Breaking changes:
+
+* "Authenticate" renamed to "sign" everywhere in `u2flib-server-core`
+** Classes `AuthenticateRequest` renamed to `SignRequest`
+** Class `AuthenticateRequestData` renamed to `SignRequestData`
+** Class `AuthenticateResponse` renamed to `SignResponse`
+** Method `Client.authenticate` renamed to `sign`
+** Class `RawAuthenticateResponse` renamed to `RawSignResponse`
+** Method `SoftKey.authenticate` renamed to `sign`
+** Method `U2F.finishAuthentication` renamed to `finishSignature`
+** Method `U2F.startAuthentication` renamed to `startSignature`
+** Method `U2fPrimitives.finishAuthentication` renamed to `finishSignature`
+** Method `U2fPrimitives.startAuthenticateion` renamed to `startSignature`
+* Constants `AUTHENTICATE_TYP` and `REGISTER_TYPE` in `U2fPrimitives` are
+  now private
+
+== Version 0.17.1 ==
+
+* u2flib-server-attestation module now uses SLF4J logging instead of
+  `Throwable.printStackTrace`
+
+
+== Version 0.17.0 ==
+
+=== u2flib-server-core ===
+
+Breaking changes:
+
+* Field `RegisterRequestData.authenticateRequests: List<AuthenticateRequest>`
+ replaced by field `registeredKeys: List<RegisteredKey>`
+
+Additions:
+
+* Fields added to class `AuthenticateRequestData`:
+  * `challenge: String`
+  * `appId: String`
+* New class `RegisteredKey`
+* Field `appId: String` added to `RegisterRequestData`
+
+=== u2flib-server-demo ===
+
+* `u2f-api.js` upgraded from version 1.0 to 1.1
+* JS calls in views updated to work with version 1.1 of the JS API
+* All views except `loginIndex` and `registerIndex` are now rendered via
+  templates
+* Navigation links added to all views
+* Error feedback improved
+
+
+== Version 0.13.1 (unreleased) ==
+
+* Changed demo server URL to `localhost:8080`.
+* Added the method `ClientData.getString` to get arbitrary clientData fields.
+* Added u2flib-server-attestation for device attestation and metadata.
+
+
+== Version 0.13.0 ==
+
+* Added built-in support for multiple devices per user.
+* Fixed demo server bug when running from jar. Thanks to axianx.

@@ -1,0 +1,130 @@
+// Copyright (c) 2018, Yubico AB
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+// 1. Redistributions of source code must retain the above copyright notice, this
+//    list of conditions and the following disclaimer.
+//
+// 2. Redistributions in binary form must reproduce the above copyright notice,
+//    this list of conditions and the following disclaimer in the documentation
+//    and/or other materials provided with the distribution.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+// FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+// DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+// SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+// CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+// OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+package com.yubico.webauthn.data;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Value;
+
+/**
+ * Contains <a
+ * href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#client-extension-output">client
+ * extension outputs</a> from a <code>navigator.credentials.create()</code> operation.
+ *
+ * <p>Note that there is no guarantee that any extension input present in {@link
+ * AssertionExtensionInputs} will have a corresponding output present here.
+ *
+ * <p>The authenticator extension outputs are contained in the {@link AuthenticatorData} structure.
+ *
+ * @see <a href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#sctn-extensions">§9. WebAuthn
+ *     Extensions</a>
+ */
+@Value
+@Builder(toBuilder = true)
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class ClientRegistrationExtensionOutputs implements ClientExtensionOutputs {
+
+  private final Boolean appidExclude;
+
+  private final Extensions.CredentialProperties.CredentialPropertiesOutput credProps;
+
+  private final Extensions.LargeBlob.LargeBlobRegistrationOutput largeBlob;
+
+  @JsonCreator
+  private ClientRegistrationExtensionOutputs(
+      @JsonProperty("appidExclude") Boolean appidExclude,
+      @JsonProperty("credProps")
+          Extensions.CredentialProperties.CredentialPropertiesOutput credProps,
+      @JsonProperty("largeBlob") Extensions.LargeBlob.LargeBlobRegistrationOutput largeBlob) {
+    this.appidExclude = appidExclude;
+    this.credProps = credProps;
+    this.largeBlob = largeBlob;
+  }
+
+  @Override
+  @EqualsAndHashCode.Include
+  public Set<String> getExtensionIds() {
+    HashSet<String> ids = new HashSet<>();
+    if (appidExclude != null) {
+      ids.add(Extensions.AppidExclude.EXTENSION_ID);
+    }
+    if (credProps != null) {
+      ids.add(Extensions.CredentialProperties.EXTENSION_ID);
+    }
+    if (largeBlob != null) {
+      ids.add(Extensions.LargeBlob.EXTENSION_ID);
+    }
+    return ids;
+  }
+
+  /**
+   * The extension output for the <a
+   * href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#sctn-appid-exclude-extension">FIDO
+   * AppID Exclusion (<code>appidExclude</code>) Extension</a>, if any.
+   *
+   * <p>This value is generally not useful, as it only communicates whether the client supports the
+   * extension.
+   *
+   * @see <a
+   *     href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#sctn-appid-exclude-extension">§10.2.FIDO
+   *     AppID Exclusion Extension (appidExclude)</a>
+   */
+  public Optional<Boolean> getAppidExclude() {
+    return Optional.ofNullable(appidExclude);
+  }
+
+  /**
+   * The extension output for the Credential Properties Extension (<code>credProps</code>), if any.
+   *
+   * <p>This value MAY be present but have all members empty if the extension was successfully
+   * processed but no credential properties could be determined.
+   *
+   * @see com.yubico.webauthn.data.Extensions.CredentialProperties.CredentialPropertiesOutput
+   * @see <a
+   *     href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#sctn-authenticator-credential-properties-extension">§10.4.
+   *     Credential Properties Extension (credProps)</a>
+   */
+  public Optional<Extensions.CredentialProperties.CredentialPropertiesOutput> getCredProps() {
+    return Optional.ofNullable(credProps);
+  }
+
+  /**
+   * The extension output for the Large blob storage extension (<code>largeBlob</code>), if any.
+   *
+   * @see com.yubico.webauthn.data.Extensions.LargeBlob.LargeBlobRegistrationOutput
+   * @see <a
+   *     href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#sctn-large-blob-extension">§10.5.Large
+   *     blob storage extension (largeBlob)</a>
+   */
+  public Optional<Extensions.LargeBlob.LargeBlobRegistrationOutput> getLargeBlob() {
+    return Optional.ofNullable(largeBlob);
+  }
+}

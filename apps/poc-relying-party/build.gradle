@@ -1,0 +1,105 @@
+buildscript {
+  repositories {
+    mavenCentral()
+  }
+  dependencies {
+    classpath 'com.cinnober.gradle:semver-git:2.5.0'
+
+    if (project.findProperty('yubicoPublish') == 'true') {
+      classpath 'io.github.gradle-nexus:publish-plugin:1.3.0'
+    }
+  }
+}
+plugins {
+  id 'java-platform'
+
+  // The root project has no sources, but the dependency platform also needs to be published as an artifact
+  // See https://docs.gradle.org/current/userguide/java_platform_plugin.html
+  // See https://github.com/Yubico/java-webauthn-server/issues/93#issuecomment-822806951
+  id 'project-convention-publish'
+}
+
+import com.yubico.gradle.GitUtils
+
+rootProject.description = "Metadata root for the com.yubico:webauthn-server-* module family"
+
+project.ext.isCiBuild = System.env.CI == 'true'
+project.ext.publishEnabled = !isCiBuild && project.findProperty('yubicoPublish') == 'true'
+
+wrapper {
+  gradleVersion = '8.1.1'
+}
+
+dependencies {
+  constraints {
+    api(constraintLibs.bundles.jackson)
+    api(constraintLibs.cbor)
+    api(constraintLibs.guava)
+    api(constraintLibs.httpclient5)
+    api(constraintLibs.slf4j)
+  }
+}
+
+allprojects {
+  ext.snapshotSuffix = "<count>.g<sha>-SNAPSHOT<dirty>"
+  ext.dirtyMarker = "-DIRTY"
+
+  apply plugin: 'com.cinnober.gradle.semver-git'
+  apply plugin: 'idea'
+
+  idea.module {
+    downloadJavadoc = true
+    downloadSources = true
+  }
+
+  repositories {
+    mavenCentral()
+  }
+
+  tasks.withType(AbstractTestTask) {
+    testLogging {
+      showStandardStreams = isCiBuild
+    }
+  }
+}
+
+if (publishEnabled) {
+  apply plugin: 'io.github.gradle-nexus.publish-plugin'
+
+  nexusPublishing {
+    repositories {
+      sonatype {
+        stagingProfileId = '6c61426e6529d'
+
+        username = ossrhUsername
+        password = ossrhPassword
+      }
+    }
+  }
+
+  task checkJavaVersionBeforeRelease {
+    doFirst {
+      if (JavaVersion.current() != JavaVersion.VERSION_17) {
+        throw new RuntimeException('Release must be built using JDK 17. Current JDK version: ' + JavaVersion.current())
+      }
+    }
+  }
+
+  allprojects {
+    tasks.withType(AbstractCompile) { shouldRunAfter checkJavaVersionBeforeRelease }
+    tasks.withType(AbstractTestTask) { shouldRunAfter checkJavaVersionBeforeRelease }
+    tasks.withType(Sign) {
+      dependsOn checkJavaVersionBeforeRelease
+    }
+
+    tasks.withType(Jar) {
+      doFirst {
+        if (GitUtils.getGitCommit(projectDir) == null) {
+          throw new RuntimeException("Failed to get git commit ID")
+        }
+      }
+    }
+  }
+}
+
+task pitestMerge(type: com.yubico.gradle.pitest.tasks.PitestMergeTask)

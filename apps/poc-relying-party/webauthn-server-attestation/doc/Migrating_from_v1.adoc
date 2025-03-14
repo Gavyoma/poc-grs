@@ -1,0 +1,179 @@
+= v1.x to v2.1 migration guide
+:idprefix:
+:idseparator: -
+
+The `2.0` release of the `webauthn-server-attestation` module
+makes lots of breaking changes compared to the `1.x` versions.
+This guide aims to help migrating between versions.
+
+If you find this migration guide to be incomplete, incorrect,
+or otherwise difficult to follow, please
+link:https://github.com/Yubico/java-webauthn-server/issues/new[let us know!]
+
+Here is a high-level outline of what needs to be updated:
+
+- Replace uses of `StandardMetadataService` and its related classes
+  with
+  link:https://developers.yubico.com/java-webauthn-server/JavaDoc/webauthn-server-attestation/2.1.0/com/yubico/fido/metadata/FidoMetadataService.html[`FidoMetadataService`]
+  and
+  link:https://developers.yubico.com/java-webauthn-server/JavaDoc/webauthn-server-attestation/2.1.0/com/yubico/fido/metadata/FidoMetadataDownloader.html[`FidoMetadataDownloader`].
+- Update the name of the
+  link:https://developers.yubico.com/java-webauthn-server/JavaDoc/webauthn-server-core/2.1.0/com/yubico/webauthn/RelyingParty.html[`RelyingParty`]
+  integration point from `metadataService` to
+  link:https://developers.yubico.com/java-webauthn-server/JavaDoc/webauthn-server-core/2.1.0/com/yubico/webauthn/RelyingParty.RelyingPartyBuilder.html#attestationTrustSource(com.yubico.webauthn.attestation.AttestationTrustSource)[`attestationTrustSource`].
+- link:https://developers.yubico.com/java-webauthn-server/JavaDoc/webauthn-server-core/2.1.0/com/yubico/webauthn/RegistrationResult.html[`RegistrationResult`]
+  no longer includes attestation metadata,
+  instead you'll need to retrieve it separately after a successful registration.
+- Replace uses of the `Attestation` result type with
+  link:https://developers.yubico.com/java-webauthn-server/JavaDoc/webauthn-server-attestation/2.1.0/com/yubico/fido/metadata/MetadataBLOBPayloadEntry.html[`MetadataBLOBPayloadEntry`].
+
+This migration guide is written for version `2.1.0` of the
+`webauthn-server-attestation` module. Later `2.x` versions may introduce new
+features but should remain compatible without further changes; consult the
+release notes for a full list of new features.
+
+
+== Replace `StandardMetadataService`
+
+`StandardMetadataService` and its constituent classes have been removed
+in favour of
+link:https://developers.yubico.com/java-webauthn-server/JavaDoc/webauthn-server-attestation/2.1.0/com/yubico/fido/metadata/FidoMetadataService.html[`FidoMetadataService`]
+and
+link:https://developers.yubico.com/java-webauthn-server/JavaDoc/webauthn-server-attestation/2.1.0/com/yubico/fido/metadata/FidoMetadataDownloader.html[`FidoMetadataDownloader`].
+See the link:../#getting-started[Getting started] documentation
+for details on how to configure and construct them.
+
+Example `1.x` code:
+
+[source,java]
+----------
+MetadataService metadataService =
+    new StandardMetadataService(
+        StandardMetadataService.createDefaultAttestationResolver(
+            StandardMetadataService.createDefaultTrustResolver()
+    ));
+----------
+
+Example `2.0` code:
+
+[source,java]
+----------
+FidoMetadataService metadataService = FidoMetadataService.builder()
+    .useBlob(FidoMetadataDownloader.builder()
+        .expectLegalHeader("Retrieval and use of this BLOB indicates acceptance of the appropriate agreement located at https://fidoalliance.org/metadata/metadata-legal-terms/")
+        .useDefaultTrustRoot()
+        .useTrustRootCacheFile(new File("fido-mds-trust-root-cache.bin"))
+        .useDefaultBlob()
+        .useBlobCacheFile(new File("fido-mds-blob-cache.bin"))
+        .build()
+        .loadCachedBlob()
+    )
+    .build();
+----------
+
+You may also need to add external logic to occasionally re-run
+link:https://developers.yubico.com/java-webauthn-server/JavaDoc/webauthn-server-attestation/2.1.0/com/yubico/fido/metadata/FidoMetadataDownloader.html#loadCachedBlob()[`loadCachedBlob()`]
+and/or
+link:https://developers.yubico.com/java-webauthn-server/JavaDoc/webauthn-server-attestation/2.1.0/com/yubico/fido/metadata/FidoMetadataDownloader.html#refreshBlob()[`refreshBlob()`]
+and reconstruct the `FidoMetadataService`,
+as `FidoMetadataService` will not automatically update the BLOB on its own.
+
+
+== Update `RelyingParty` integration point
+
+link:https://developers.yubico.com/java-webauthn-server/JavaDoc/webauthn-server-attestation/2.1.0/com/yubico/fido/metadata/FidoMetadataService.html[`FidoMetadataService`]
+integrates with
+link:https://developers.yubico.com/java-webauthn-server/JavaDoc/webauthn-server-core/2.1.0/com/yubico/webauthn/RelyingParty.html[`RelyingParty`]
+in much the same way as `StandardMetadataService`,
+although the name of the setting has changed.
+
+Example `1.x` code:
+
+[source,diff]
+----------
+ RelyingParty rp = RelyingParty.builder()
+     .identity(rpIdentity)
+     .credentialRepository(credentialRepo)
+     .attestationConveyancePreference(AttestationConveyancePreference.DIRECT)
+-    .metadataService(metadataService))
+     .allowUntrustedAttestation(true)
+     .build();
+----------
+
+Example `2.0` code:
+
+[source,diff]
+----------
+ RelyingParty rp = RelyingParty.builder()
+     .identity(rpIdentity)
+     .credentialRepository(credentialRepo)
+     .attestationConveyancePreference(AttestationConveyancePreference.DIRECT)
++    .attestationTrustSource(metadataService)
+     .allowUntrustedAttestation(true)
+     .build();
+----------
+
+
+== Retrieve attestation metadata separately
+
+In `1.x`,
+link:https://developers.yubico.com/java-webauthn-server/JavaDoc/webauthn-server-core/2.1.0/com/yubico/webauthn/RegistrationResult.html[`RegistrationResult`]
+could include an `Attestation` object with attestation metadata,
+if a metadata service was configured and the authenticator matched anything in the metadata service.
+In order to keep
+link:https://developers.yubico.com/java-webauthn-server/JavaDoc/webauthn-server-core/2.1.0/com/yubico/webauthn/RelyingParty.html[`RelyingParty`]
+and the new
+link:https://developers.yubico.com/java-webauthn-server/JavaDoc/webauthn-server-core/2.1.0/com/yubico/webauthn/attestation/AttestationTrustSource.html[`AttestationTrustSource`]
+interface decoupled from any particular format of attestation metadata, this result field has been removed.
+Instead, use the `findEntries` methods of
+link:https://developers.yubico.com/java-webauthn-server/JavaDoc/webauthn-server-attestation/2.1.0/com/yubico/fido/metadata/FidoMetadataService.html[`FidoMetadataService`]
+to retrieve attestation metadata after a successful registration, if needed.
+
+Example `1.x` code:
+
+[source,java]
+----------
+RegistrationResult result = rp.finishRegistration(/* ... */);
+Optional<String> authenticatorName = result.getAttestationMetadata()
+  .flatMap(Attestation::getDeviceProperties)
+  .map(deviceProps -> deviceProps.get("description"));
+----------
+
+Example `2.0` code:
+
+[source,java]
+----------
+FidoMetadataService mds = /* ... */;
+RegistrationResult result = rp.finishRegistration(/* ... */);
+Optional<String> authenticatorName = mds.findEntries(result)
+    .stream()
+    .findAny()
+    .flatMap(MetadataBLOBPayloadEntry::getMetadataStatement)
+    .flatMap(MetadataStatement::getDescription);
+----------
+
+
+== Replace `Attestation` with `MetadataBLOBPayloadEntry`
+
+This ties in with the previous step, and much of it will likely be done already.
+However if your front-end accesses and/or displays contents of an `Attestation` object,
+it will need to be updated to work with
+link:https://developers.yubico.com/java-webauthn-server/JavaDoc/webauthn-server-attestation/2.1.0/com/yubico/fido/metadata/MetadataBLOBPayloadEntry.html[`MetadataBLOBPayloadEntry`]
+or similar types instead.
+
+
+Example `1.x` code:
+
+[source,diff]
+----------
+ var registrationResult = fetch(/* ... */).then(response => response.json());
+-var authenticatorName = registrationResult.attestationMetadata?.deviceProperties?.description;
+----------
+
+Example `2.0` code:
+
+[source,diff]
+----------
+ var registrationResult = fetch(/* ... */).then(response => response.json());
++var authenticatorName = registrationResult.attestationMetadata?.metadataStatement?.description;
+----------
