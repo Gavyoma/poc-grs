@@ -1,0 +1,12 @@
+{
+  "name": "spring-htmx-tailwind-form",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "watch:css": "npx tailwindcss -i ./src/main/resources/static/css/input.css -o ./src/main/resources/static/css/tailwind.css --watch",
+    "build:css": "npx tailwindcss -i ./src/main/resources/static/css/input.css -o ./src/main/resources/static/css/tailwind.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.11"
+  }
+}

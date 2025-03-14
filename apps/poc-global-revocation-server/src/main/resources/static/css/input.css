@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+.form-input {
+    @apply w-full rounded-2xl border border-zinc-300 bg-white px-4 py-3 font-mono text-sm tracking-wider text-zinc-900 placeholder:text-zinc-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white;
+}
+
+/* HTMX Loading Indicator */
+.htmx-indicator {
+    display: none;
+}
+
+.htmx-request .htmx-indicator {
+    display: flex !important;
+}

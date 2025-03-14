@@ -1,0 +1,96 @@
+databaseChangeLog:
+  - changeSet:
+      id: init-uuidv7-schema
+      author: gavi
+      comment: Schema optimized for UUIDv7 Primary Keys and Opaque Cursors
+      changes:
+        - createTable:
+            tableName: revocation_keys
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: key
+                  type: VARCHAR(2048)
+                  constraints:
+                    unique: true
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  defaultValueComputed: NOW()
+
+        - createTable:
+            tableName: relying_party_events
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: w
+                  type: VARCHAR(2048)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: c
+                  type: VARCHAR(2048)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  defaultValueComputed: NOW()
+
+        - createTable:
+            tableName: processed_events
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: key_id
+                  type: UUID
+              - column:
+                  name: event_id
+                  type: UUID
+              - column:
+                  name: w_dash
+                  type: VARCHAR(2048)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  defaultValueComputed: NOW()
+
+        - addForeignKeyConstraint:
+            baseTableName: processed_events
+            baseColumnNames: key_id
+            referencedTableName: revocation_keys
+            referencedColumnNames: id
+            constraintName: fk_processed_events_key
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: processed_events
+            baseColumnNames: event_id
+            referencedTableName: relying_party_events
+            referencedColumnNames: id
+            constraintName: fk_processed_events_event
+            onDelete: CASCADE
+
+        - addUniqueConstraint:
+            tableName: processed_events
+            columnNames: key_id, event_id
+            constraintName: unq_key_w_c
+        - addUniqueConstraint:
+            tableName: relying_party_events
+            columnNames: w, c
+            constraintName: unq_key_rp_w_c

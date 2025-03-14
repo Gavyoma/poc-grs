@@ -1,0 +1,29 @@
+databaseChangeLog:
+  - changeSet:
+      id: add-status-to-processed-events
+      author: gavi
+      changes:
+        - addColumn:
+            tableName: processed_events
+            columns:
+              - column:
+                  name: processing_status
+                  type: varchar(20)
+                  defaultValue: 'PENDING'
+                  constraints:
+                    nullable: false
+              - column:
+                  name: error_details
+                  type: text
+                  constraints:
+                    nullable: true
+
+  - changeSet:
+      id: create-partial-index-for-processed-events
+      author: gavi
+      changes:
+        - sql:
+            sql: "CREATE INDEX idx_processed_events_pending ON processed_events (id) WHERE processing_status = 'PENDING';"
+      rollback:
+        - sql:
+            sql: "DROP INDEX idx_orders_pending;"

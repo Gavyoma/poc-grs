@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:hx-on="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <title>Submit Key</title>
+    <link rel="stylesheet" th:href="@{/css/tailwind.css}">
+    <script th:src="@{/js/htmx.min.js}"></script>
+</head>
+<body class="bg-zinc-100 dark:bg-zinc-950 min-h-screen flex items-center justify-center p-6">
+
+<div class="w-full max-w-md">
+    <div class="text-center mb-8">
+        <div class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-400 to-blue-600 shadow-xl shadow-teal-500/30 ring-1 ring-white/20 inset-ring inset-ring-white/10">
+            <svg class="h-8 w-8 text-white drop-shadow-md transition-transform duration-300 hover:scale-110"
+                 fill="none"
+                 stroke="currentColor" stroke-width="2"
+                 viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-.999.43-1.563A6 6 0 1121.75 8.25z"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"/>
+            </svg>
+        </div>
+        <h1 class="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-white">Submit Global Revocation
+            Key</h1>
+    </div>
+
+    <div class="rounded-3xl border border-zinc-200 bg-white p-8 shadow-xl dark:border-zinc-800 dark:bg-zinc-900"
+         id="form-wrapper">
+
+        <div th:fragment="formContent">
+
+            <form class="space-y-6"
+                  hx-indicator="#submit-btn"
+                  hx-on::before-request="if (!validateBase64BeforeSubmit(this)) { event.preventDefault(); return false; }"
+                  hx-post="/save-key"
+                  hx-swap="innerHTML"
+                  hx-target="#form-wrapper"
+                  th:object="${keyForm}">
+
+                <div>
+                    <input autocomplete="off"
+                           class="form-input w-full"
+                           id="key"
+                           placeholder="e.g. SGVsbG8gV29ybGQ="
+                           required
+                           spellcheck="false"
+                           th:field="*{key}"
+                           type="text">
+                </div>
+
+                <button class="group relative w-full flex items-center justify-center gap-x-2 rounded-2xl py-3.5 text-sm font-semibold text-white transition-all duration-200
+                           bg-gradient-to-r from-teal-500 to-blue-600 shadow-md
+                           hover:from-teal-400 hover:to-blue-500 hover:shadow-lg hover:shadow-teal-500/25 hover:-translate-y-0.5
+                           active:scale-[0.985] active:translate-y-0
+                           focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:ring-offset-2 dark:focus:ring-offset-zinc-900
+                           disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-md"
+                        id="submit-btn"
+                        type="submit">
+
+                    <span class="htmx-indicator hidden items-center gap-x-2 drop-shadow-sm">
+                        <svg class="h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24"
+                             xmlns="http://www.w3.org/2000/svg">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                    stroke-width="4"></circle>
+                            <path class="opacity-75"
+                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                  fill="currentColor"></path>
+                        </svg>
+                        <span>Saving...</span>
+                    </span>
+
+                    <span class="htmx-request:hidden drop-shadow-sm flex items-center gap-2">
+                    Submit
+                    <svg class="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1"
+                         fill="currentColor" viewBox="0 0 20 20"
+                         xmlns="http://www.w3.org/2000/svg">
+                        <path clip-rule="evenodd"
+                              d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
+                              fill-rule="evenodd"/>
+                    </svg>
+                </span>
+                </button>
+
+                <div class="min-h-[72px] pt-2">
+                    <div class="space-y-3">
+
+                        <div class="hidden flex items-center gap-x-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400"
+                             id="client-error">
+                            <svg class="h-5 w-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path clip-rule="evenodd"
+                                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                      fill-rule="evenodd"/>
+                            </svg>
+                            <p class="font-medium text-sm" id="client-error-text"></p>
+                        </div>
+
+                        <div class="flex items-center gap-x-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400"
+                             id="server-error"
+                             th:if="${#fields.hasErrors('key')}">
+                            <svg class="h-5 w-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path clip-rule="evenodd"
+                                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                      fill-rule="evenodd"/>
+                            </svg>
+                            <p class="font-medium text-sm" th:errors="*{key}">Server error message</p>
+                        </div>
+
+                        <div class="flex items-center gap-x-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-400"
+                             th:if="${successMessage}">
+                            <svg class="h-5 w-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path clip-rule="evenodd"
+                                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                      fill-rule="evenodd"/>
+                            </svg>
+                            <p class="font-medium" th:text="${successMessage}"></p>
+                        </div>
+
+                    </div>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function validateBase64BeforeSubmit(form) {
+        const input = form.querySelector('#key');
+        const errorContainer = document.getElementById('client-error');
+        const errorText = document.getElementById('client-error-text');
+        const value = input.value.trim();
+
+        if (errorContainer) errorContainer.classList.add('hidden');
+
+        if (!value) {
+            if (errorContainer && errorText) {
+                errorText.textContent = 'Key cannot be empty';
+                errorContainer.classList.remove('hidden');
+            }
+            return false;
+        }
+
+        let decoded;
+        try {
+            decoded = atob(value);
+        } catch (e) {
+            if (errorContainer && errorText) {
+                errorText.textContent = 'Invalid Key';
+                errorContainer.classList.remove('hidden');
+            }
+            return false;
+        }
+
+        if (decoded.length * 8 < 1024) {
+            if (errorContainer && errorText) {
+                errorText.textContent = 'Invalid Key';
+                errorContainer.classList.remove('hidden');
+            }
+            return false;
+        }
+
+        return true;
+    }
+
+    document.addEventListener('htmx:beforeRequest', function () {
+        const success = document.querySelector('.border-emerald-200');
+        if (success) success.style.display = 'none';
+    });
+
+    document.addEventListener('input', function (e) {
+        if (e.target.id === 'key') {
+            const success = document.querySelector('.border-emerald-200');
+            if (success) success.style.display = 'none';
+        }
+    });
+</script>
+</body>
+</html>
