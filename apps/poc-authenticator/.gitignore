@@ -1,0 +1,27 @@
+**/build
+**/build_release
+**/release
+
+### IntelliJ IDEA ###
+**/.idea/*
+!.idea/cmake.xml
+
+**/.github
+**/.project
+**/.cproject
+**/out
+**/cmake-build-debug
+**/cmake-build-build
+**/.codelite
+**/*.workspace
+
+.stfolder
+.metadata_never_index
+.Trashes
+.stignore
+**/.DS_Store
+
+# =========================
+# Dev scripts
+# =========================
+local-*.sh
