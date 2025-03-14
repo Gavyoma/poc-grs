@@ -1,0 +1,30 @@
+# Java & Gradle
+.gradle/
+build/
+out/
+*.class
+*.jar
+*.war
+
+# C & CMake
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.a
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+
+# SDK
+apps/pico-sdk
+apps/pimoroni-pico
+
