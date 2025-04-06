@@ -2,7 +2,7 @@
 
 ## Description
 
-This repository contains the proof-of-concept implementation for the Global Revocation Server for FIDO2. It provides
+This repository contains the proof-of-concept implementation for the Global Revocation Server FIDO2. It provides
 supplementary material for our research paper, "Secure and Privacy-Preserving Global Revocation for FIDO2-based
 Systems".
 
@@ -70,11 +70,11 @@ Once the application is running, you can submit the Global Revocation Key using 
 <details>
   <summary><strong> 📸 Click to view screenshots 📸 </strong></summary>
 
-### Key Submission
+### Global Revocation Key Submission
 
   <img src="docs/images/submit-key.webp" alt="Page showing form to submit Global Revocation Key" width="400">
 
-### Key validation
+### Global Revocation Key validation
 
   <img src="docs/images/submit-key-duplicate.webp" alt="Page showing error during duplicate key submission" width="400">
 
