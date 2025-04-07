@@ -89,7 +89,7 @@ API.
 <details>
   <summary><strong> 📸 Click to view screenshots 📸 </strong></summary>
 
-### General API Overview
+### API Overview
 
   <img src="docs/images/apidoc-general.webp" alt="OpenAPI Doc" width="900">
 

@@ -1,9 +1,12 @@
 This repository contains the proof-of-concept implementation for the Authenticator FIDO2. It provides supplementary
 material for our research paper, "Secure and Privacy-Preserving Global Revocation for FIDO2-based Systems".
 
-### POC Screenshot of Raspberry Pi Pico RP2040 as FIDO2 Authenticator with Global Revocation Display
+### POC Screenshot of Raspberry Pi Pico RP2040 as FIDO2 Authenticator with attached Display showing Global Revocation Key
 
-<img src="docs/images/pico-with-display.webp" alt="Photo showing PICO with Global Revocation Display" width="400">
+<img src="docs/images/pico-with-display.webp" alt="Photo showing PICO with Global Revocation Display" width="500">
+
+Note: The [python-fido2 library](https://github.com/Yubico/python-fido2) by Yubico is used for debugging during
+implementation.
 
 # Pico FIDO (Modified - GPLv3)
 
