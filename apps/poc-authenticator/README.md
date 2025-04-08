@@ -5,6 +5,40 @@ material for our research paper, "Secure and Privacy-Preserving Global Revocatio
 
 <img src="docs/images/pico-with-display.webp" alt="Photo showing PICO with Global Revocation Display" width="500">
 
+### Proof of Concept: Hardware Components
+
+- Raspberry Pi Pico RP2040 microcontroller board with headers
+- Raspberry Pi Debug Probe
+- Pico Display Pack by Pimoroni 1.14" IPS LCD screen
+- Waveshare Pico-Quad-Expander
+
+### Build
+
+````bash
+# Note: To ensure the build is stable, you should build from our tested commit rather than the `main` branch.
+
+# Pull pico-sdk
+git clone -b master https://github.com/raspberrypi/pico-sdk.git --recursive
+cd pico-sdk
+git checkout efe2103f9b28458a1615ff096054479743ade236
+
+# Pull pico tool
+git clone -b master https://github.com/raspberrypi/picotool.git --recursive
+
+## Build and install picotool # sudo needed for installing
+cd ~/<PATH>/picotool || return 1
+mkdir build
+cd build || return 1
+cmake ..
+sudo make install
+
+# Pull pimoroni sdk
+git clone https://github.com/pimoroni/pimoroni-pico.git --recursive
+cd pimoroni-pico
+git checkout 1495805d2b9644d6f599d6f260aa11c4aad1e7a7
+
+````
+
 Note: The [python-fido2 library](https://github.com/Yubico/python-fido2) by Yubico is used for debugging during
 implementation.
 
