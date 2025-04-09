@@ -16,6 +16,7 @@ material for our research paper, "Secure and Privacy-Preserving Global Revocatio
 
 ````bash
 # Note: To ensure the build is stable, you should build from our tested commit rather than the `main` branch.
+# This has been tested on Debian (x86_64)
 
 # Pull pico-sdk
 git clone -b master https://github.com/raspberrypi/pico-sdk.git --recursive
@@ -37,6 +38,11 @@ git clone https://github.com/pimoroni/pimoroni-pico.git --recursive
 cd pimoroni-pico
 git checkout 1495805d2b9644d6f599d6f260aa11c4aad1e7a7
 
+# Build
+git clone <PATH_TO_REPO>
+cd poc-grs/apps/poc-authenticator
+bash ./pico-keys-sdk/fetch-dependencies.sh
+bash ./build-poc.sh
 ````
 
 Note: The [python-fido2 library](https://github.com/Yubico/python-fido2) by Yubico is used for debugging during

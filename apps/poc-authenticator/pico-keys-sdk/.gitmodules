@@ -1,6 +1,8 @@
 [submodule "mbedtls"]
 	path = mbedtls
 	url = https://github.com/ARMmbed/mbedtls
+	hash = 2ca6c285a0dd3f33982dd57299012dacab1ff206
 [submodule "tinycbor"]
 	path = tinycbor
 	url = https://github.com/intel/tinycbor.git
+    hash = e27261ed5e2ed059d160f16ae776951a08a861fc
