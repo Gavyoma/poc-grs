@@ -130,3 +130,9 @@ part of the revocation information.
 | RP            | pk_cred, (v, w, c)                                  |
 | GRS           | pk_revoc, (w, c)                                    |
 
+## Licensing and Attributions
+
+The original code in this repository is licensed under the [Apache License, Version 2.0](./LICENSE).
+
+This monorepo also contains modified versions of third-party open-source projects. For a complete list of third-party
+code, original authors, and base commit hashes, please see [CREDITS.md](./CREDITS.md).
