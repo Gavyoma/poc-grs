@@ -13,6 +13,9 @@ research paper to fully understand the underlying concepts.
 
 Watch our proof-of-concept demo:
 
+<video src="https://npcraft.com/videos/demo-proof-of-concept.mp4" controls="controls" width="600">
+</video>
+
 # Implementations
 
 Following components are part of the proof-of-concept demo.
