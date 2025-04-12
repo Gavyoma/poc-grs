@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025, Nirav Pistolwala
+ * Copyright (c) 2024-2025, N. "Gavi" Pistolwala
  * All rights reserved.
  *
  * New features and modifications in this project are licensed under the same
@@ -37,10 +37,12 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.upokecenter.cbor.CBORObject;
 import com.yubico.internal.util.CollectionUtil;
+
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Value;
@@ -60,102 +62,102 @@ import lombok.extern.slf4j.Slf4j;
  * type.
  *
  * @see <a href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#sctn-extensions">§9. WebAuthn
- *     Extensions</a>
+ * Extensions</a>
  */
 @Value
 @Builder(toBuilder = true)
 @Slf4j
 @JsonIgnoreProperties(ignoreUnknown = true)
 public final class AuthenticatorRegistrationExtensionOutputs
-    implements AuthenticatorExtensionOutputs {
+        implements AuthenticatorExtensionOutputs {
 
-  private final List<Extensions.Uvm.UvmEntry> uvm;
-  private final Extensions.GlobalRevocation globalRevoke;
+    private final List<Extensions.Uvm.UvmEntry> uvm;
+    private final Extensions.GlobalRevocation globalRevoke;
 
-  @JsonCreator
-  private AuthenticatorRegistrationExtensionOutputs(
-          @JsonProperty("uvm") List<Extensions.Uvm.UvmEntry> uvm,
-          Extensions.GlobalRevocation globalRevoke) {
-    this.uvm = uvm == null ? null : CollectionUtil.immutableList(uvm);
-    this.globalRevoke = globalRevoke;
-  }
-
-  /**
-   * Parse <a
-   * href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#registration-extension">registration</a>
-   * <a
-   * href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#authenticator-extension-output">authenticator
-   * extension outputs</a> from the given authenticator data.
-   *
-   * <p>If the <code>authData</code> does not contain authenticator extension outputs, this returns
-   * an empty {@link Optional}.
-   *
-   * <p>Otherwise, this returns a present {@link Optional} containing an {@link
-   * AuthenticatorRegistrationExtensionOutputs} value with all validly-formatted <a
-   * href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#registration-extension">registration</a>
-   * <a
-   * href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#authenticator-extension-output">extension
-   * outputs</a> supported by this library. This silently ignores <a
-   * href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#authentication-extension">authentication</a>
-   * extension outputs, malformed extension outputs, and unsupported extensions. The raw set of
-   * extension outputs can instead be obtained via {@link AuthenticatorData#getExtensions()}.
-   *
-   * <p>Note that a present {@link AuthenticatorRegistrationExtensionOutputs} may contain zero
-   * extension outputs.
-   *
-   * @param authData the <a
-   *     href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#authenticator-data">authenticator
-   *     data</a> to parse extension outputs from
-   * @return an empty {@link Optional} if the <code>authData</code> does not contain authenticator
-   *     extension outputs. Otherwise a present {@link Optional} containing parsed extension output
-   *     values.
-   */
-  public static Optional<AuthenticatorRegistrationExtensionOutputs> fromAuthenticatorData(
-      AuthenticatorData authData) {
-    log.debug("#### AuthenticatorRegistrationExtensionOutputs: ####");
-    log.debug("fromAuthenticatorData: {}", authData.getExtensions());
-    log.debug("####################################################");
-    return authData.getExtensions().flatMap(AuthenticatorRegistrationExtensionOutputs::fromCbor);
-  }
-
-  static Optional<AuthenticatorRegistrationExtensionOutputs> fromCbor(CBORObject cbor) {
-    AuthenticatorRegistrationExtensionOutputsBuilder b = builder();
-
-    Extensions.Uvm.parseAuthenticatorExtensionOutput(cbor).ifPresent(b::uvm);
-    Extensions.GlobalRevocation.parseAuthenticatorExtensionOutput(cbor).ifPresent(b::globalRevoke);
-
-    AuthenticatorRegistrationExtensionOutputs result = b.build();
-
-    if (result.getExtensionIds().isEmpty()) {
-      return Optional.empty();
-    } else {
-      return Optional.of(result);
+    @JsonCreator
+    private AuthenticatorRegistrationExtensionOutputs(
+            @JsonProperty("uvm") List<Extensions.Uvm.UvmEntry> uvm,
+            Extensions.GlobalRevocation globalRevoke) {
+        this.uvm = uvm == null ? null : CollectionUtil.immutableList(uvm);
+        this.globalRevoke = globalRevoke;
     }
-  }
 
-  @Override
-  @EqualsAndHashCode.Include
-  public Set<String> getExtensionIds() {
-    HashSet<String> ids = new HashSet<>();
-    if (uvm != null) {
-      ids.add(Extensions.Uvm.EXTENSION_ID);
+    /**
+     * Parse <a
+     * href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#registration-extension">registration</a>
+     * <a
+     * href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#authenticator-extension-output">authenticator
+     * extension outputs</a> from the given authenticator data.
+     *
+     * <p>If the <code>authData</code> does not contain authenticator extension outputs, this returns
+     * an empty {@link Optional}.
+     *
+     * <p>Otherwise, this returns a present {@link Optional} containing an {@link
+     * AuthenticatorRegistrationExtensionOutputs} value with all validly-formatted <a
+     * href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#registration-extension">registration</a>
+     * <a
+     * href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#authenticator-extension-output">extension
+     * outputs</a> supported by this library. This silently ignores <a
+     * href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#authentication-extension">authentication</a>
+     * extension outputs, malformed extension outputs, and unsupported extensions. The raw set of
+     * extension outputs can instead be obtained via {@link AuthenticatorData#getExtensions()}.
+     *
+     * <p>Note that a present {@link AuthenticatorRegistrationExtensionOutputs} may contain zero
+     * extension outputs.
+     *
+     * @param authData the <a
+     *                 href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#authenticator-data">authenticator
+     *                 data</a> to parse extension outputs from
+     * @return an empty {@link Optional} if the <code>authData</code> does not contain authenticator
+     * extension outputs. Otherwise a present {@link Optional} containing parsed extension output
+     * values.
+     */
+    public static Optional<AuthenticatorRegistrationExtensionOutputs> fromAuthenticatorData(
+            AuthenticatorData authData) {
+        log.debug("#### AuthenticatorRegistrationExtensionOutputs: ####");
+        log.debug("fromAuthenticatorData: {}", authData.getExtensions());
+        log.debug("####################################################");
+        return authData.getExtensions().flatMap(AuthenticatorRegistrationExtensionOutputs::fromCbor);
     }
-    if (globalRevoke != null) {
-      ids.add(Extensions.GlobalRevocation.EXTENSION_ID);
-    }
-    return ids;
-  }
 
-  /**
-   * @return The <a
-   *     href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#authenticator-extension-output">authenticator
-   *     extension output</a> for the <a
-   *     href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#sctn-uvm-extension">User
-   *     Verification Method (<code>uvm</code>) extension</a>, if any.
-   * @see <a href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#sctn-uvm-extension">§10.3.
-   *     User Verification Method extension (uvm)</a>
-   */
-  public Optional<List<Extensions.Uvm.UvmEntry>> getUvm() {
-    return Optional.ofNullable(uvm);
-  }
+    static Optional<AuthenticatorRegistrationExtensionOutputs> fromCbor(CBORObject cbor) {
+        AuthenticatorRegistrationExtensionOutputsBuilder b = builder();
+
+        Extensions.Uvm.parseAuthenticatorExtensionOutput(cbor).ifPresent(b::uvm);
+        Extensions.GlobalRevocation.parseAuthenticatorExtensionOutput(cbor).ifPresent(b::globalRevoke);
+
+        AuthenticatorRegistrationExtensionOutputs result = b.build();
+
+        if (result.getExtensionIds().isEmpty()) {
+            return Optional.empty();
+        } else {
+            return Optional.of(result);
+        }
+    }
+
+    @Override
+    @EqualsAndHashCode.Include
+    public Set<String> getExtensionIds() {
+        HashSet<String> ids = new HashSet<>();
+        if (uvm != null) {
+            ids.add(Extensions.Uvm.EXTENSION_ID);
+        }
+        if (globalRevoke != null) {
+            ids.add(Extensions.GlobalRevocation.EXTENSION_ID);
+        }
+        return ids;
+    }
+
+    /**
+     * @return The <a
+     * href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#authenticator-extension-output">authenticator
+     * extension output</a> for the <a
+     * href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#sctn-uvm-extension">User
+     * Verification Method (<code>uvm</code>) extension</a>, if any.
+     * @see <a href="https://www.w3.org/TR/2021/REC-webauthn-2-20210408/#sctn-uvm-extension">§10.3.
+     * User Verification Method extension (uvm)</a>
+     */
+    public Optional<List<Extensions.Uvm.UvmEntry>> getUvm() {
+        return Optional.ofNullable(uvm);
+    }
 }

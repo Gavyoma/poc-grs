@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025, Nirav Pistolwala
+ * Copyright (c) 2024-2025, N. "Gavi" Pistolwala
  * All rights reserved.
  *
  * New features and modifications in this project are licensed under the same
@@ -58,257 +58,259 @@ import java.util.stream.Collectors;
 
 @Slf4j
 public class InMemoryRegistrationStorage
-    implements CredentialRepositoryV2<CredentialRegistration>, UsernameRepository {
+        implements CredentialRepositoryV2<CredentialRegistration>, UsernameRepository {
 
-  private final Cache<String, Set<CredentialRegistration>> storage =
-      CacheBuilder.newBuilder().maximumSize(1000).expireAfterAccess(1, TimeUnit.DAYS).build();
+    private static final Logger logger = LoggerFactory.getLogger(InMemoryRegistrationStorage.class);
+    private final Cache<String, Set<CredentialRegistration>> storage =
+            CacheBuilder.newBuilder().maximumSize(1000).expireAfterAccess(1, TimeUnit.DAYS).build();
 
-  private static final Logger logger = LoggerFactory.getLogger(InMemoryRegistrationStorage.class);
+    ////////////////////////////////////////////////////////////////////////////////
+    // The following methods are required by the CredentialRepositoryV2 interface.
 
-  ////////////////////////////////////////////////////////////////////////////////
-  // The following methods are required by the CredentialRepositoryV2 interface.
-  ////////////////////////////////////////////////////////////////////////////////
+    /**
+     * Decodes two Base64URL strings, concatenates them, and calculates the SHA-256 hash.
+     *
+     * @param base64Url1 The first Base64URL encoded string
+     * @param base64Url2 The second Base64URL encoded string
+     * @return The SHA-256 hash as a raw byte array
+     */
+    public static String hashTwoBase64UrlStrings(String base64Url1, String base64Url2) throws NoSuchAlgorithmException {
 
-  @Override
-  public Set<CredentialRegistration> getCredentialDescriptorsForUserHandle(ByteArray userHandle) {
-    return getRegistrationsByUserHandle(userHandle);
-  }
+        Base64.Decoder decoder = Base64.getUrlDecoder();
+        byte[] bytes1 = decoder.decode(base64Url1);
+        byte[] bytes2 = decoder.decode(base64Url2);
 
-  @Override
-  public Optional<CredentialRegistration> lookup(ByteArray credentialId, ByteArray userHandle) {
-    Optional<CredentialRegistration> registrationMaybe =
-        storage.asMap().values().stream()
-            .flatMap(Collection::stream)
-            .filter(
-                credReg ->
-                    credentialId.equals(credReg.getCredential().getCredentialId())
-                        && userHandle.equals(credReg.getUserHandle()))
-            .findAny();
+        byte[] combinedBytes = new byte[bytes1.length + bytes2.length];
+        System.arraycopy(bytes1, 0, combinedBytes, 0, bytes1.length);
+        System.arraycopy(bytes2, 0, combinedBytes, bytes1.length, bytes2.length);
 
-    logger.debug(
-        "lookup credential ID: {}, user handle: {}; result: {}",
-        credentialId,
-        userHandle,
-        registrationMaybe);
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
-    return registrationMaybe;
-  }
-
-  @Override
-  public boolean credentialIdExists(ByteArray credentialId) {
-    return storage.asMap().values().stream()
-        .flatMap(Collection::stream)
-        .anyMatch(reg -> reg.getCredential().getCredentialId().equals(credentialId));
-  }
-
-  ////////////////////////////////////////////////////////////////////////////////
-  // The following methods are required by the UsernameRepository interface.
-  ////////////////////////////////////////////////////////////////////////////////
-
-  @Override
-  public Optional<ByteArray> getUserHandleForUsername(String username) {
-    return getRegistrationsByUsername(username).stream()
-        .findAny()
-        .map(reg -> reg.getUserIdentity().getId());
-  }
-
-  @Override
-  public Optional<String> getUsernameForUserHandle(ByteArray userHandle) {
-    return getRegistrationsByUserHandle(userHandle).stream()
-        .findAny()
-        .map(CredentialRegistration::getUsername);
-  }
-
-  ////////////////////////////////////////////////////////////////////////////////
-  // The following methods are specific to this demo application.
-  ////////////////////////////////////////////////////////////////////////////////
-
-  public boolean addRegistrationByUsername(String username, CredentialRegistration reg) {
-    try {
-      return storage.get(username, HashSet::new).add(reg);
-    } catch (ExecutionException e) {
-      logger.error("Failed to add registration", e);
-      throw new RuntimeException(e);
+        byte[] result = digest.digest(combinedBytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(result);
     }
-  }
 
-  public Collection<CredentialRegistration> getRegistrationsByUsername(String username) {
-    try {
-      return storage.get(username, HashSet::new);
-    } catch (ExecutionException e) {
-      logger.error("Registration lookup failed", e);
-      throw new RuntimeException(e);
+    /// /////////////////////////////////////////////////////////////////////////////
+
+    @Override
+    public Set<CredentialRegistration> getCredentialDescriptorsForUserHandle(ByteArray userHandle) {
+        return getRegistrationsByUserHandle(userHandle);
     }
-  }
 
-  public Set<CredentialRegistration> getRegistrationsByUserHandle(ByteArray userHandle) {
-    return storage.asMap().values().stream()
-        .flatMap(Collection::stream)
-        .filter(
-            credentialRegistration ->
-                userHandle.equals(credentialRegistration.getUserIdentity().getId()))
-        .collect(Collectors.toSet());
-  }
+    @Override
+    public Optional<CredentialRegistration> lookup(ByteArray credentialId, ByteArray userHandle) {
+        Optional<CredentialRegistration> registrationMaybe =
+                storage.asMap().values().stream()
+                        .flatMap(Collection::stream)
+                        .filter(
+                                credReg ->
+                                        credentialId.equals(credReg.getCredential().getCredentialId())
+                                                && userHandle.equals(credReg.getUserHandle()))
+                        .findAny();
 
-  public void updateSignatureCount(AssertionResultV2<CredentialRegistration> result) {
-    CredentialRegistration registration =
-        getRegistrationByUsernameAndCredentialId(
-                result.getCredential().getUsername(), result.getCredential().getCredentialId())
-            .orElseThrow(
-                () ->
-                    new NoSuchElementException(
-                        String.format(
-                            "Credential \"%s\" is not registered to user \"%s\"",
-                            result.getCredential().getCredentialId(),
-                            result.getCredential().getUsername())));
+        logger.debug(
+                "lookup credential ID: {}, user handle: {}; result: {}",
+                credentialId,
+                userHandle,
+                registrationMaybe);
 
-    Set<CredentialRegistration> regs = storage.getIfPresent(result.getCredential().getUsername());
-    regs.remove(registration);
-    regs.add(
-        registration.withCredential(
-            registration.getCredential().toBuilder()
-                .signatureCount(result.getSignatureCount())
-                .build()));
-  }
-
-  public Optional<CredentialRegistration> getRegistrationByUsernameAndCredentialId(
-      String username, ByteArray id) {
-    try {
-      return storage.get(username, HashSet::new).stream()
-          .filter(credReg -> id.equals(credReg.getCredential().getCredentialId()))
-          .findFirst();
-    } catch (ExecutionException e) {
-      logger.error("Registration lookup failed", e);
-      throw new RuntimeException(e);
+        return registrationMaybe;
     }
-  }
 
-  public boolean removeRegistrationByUsername(
-      String username, CredentialRegistration credentialRegistration) {
-    try {
-      return storage.get(username, HashSet::new).remove(credentialRegistration);
-    } catch (ExecutionException e) {
-      logger.error("Failed to remove registration", e);
-      throw new RuntimeException(e);
+    ////////////////////////////////////////////////////////////////////////////////
+    // The following methods are required by the UsernameRepository interface.
+
+    @Override
+    public boolean credentialIdExists(ByteArray credentialId) {
+        return storage.asMap().values().stream()
+                .flatMap(Collection::stream)
+                .anyMatch(reg -> reg.getCredential().getCredentialId().equals(credentialId));
     }
-  }
 
-  public boolean removeAllRegistrations(String username) {
-    storage.invalidate(username);
-    return true;
-  }
+    /// /////////////////////////////////////////////////////////////////////////////
 
-  public boolean userExists(String username) {
-    return !getRegistrationsByUsername(username).isEmpty();
-  }
-
-  public boolean isGlobalRevocationKeyRevoked(String username) {
-    boolean result = false;
-    Collection<CredentialRegistration> registrationsByUsername = getRegistrationsByUsername(username);
-    if (!registrationsByUsername.isEmpty()) {
-      result = registrationsByUsername.stream().findAny()
-              .map(CredentialRegistration::isGlobalRevocationKeyRevoked)
-              .orElseGet(() -> false);
-      logger.debug("Global revocation: user: {}, isKeyRevoked: {}", username, result);
+    @Override
+    public Optional<ByteArray> getUserHandleForUsername(String username) {
+        return getRegistrationsByUsername(username).stream()
+                .findAny()
+                .map(reg -> reg.getUserIdentity().getId());
     }
-    return result;
-  }
 
-  public void checkAndRevokeKeys(List<RevocationWDash> wDashes) {
-    List<CredentialRegistration> foundKeysToBeRevoked = new ArrayList<>();
-    List<CredentialRegistration> existingRegistrations = storage.asMap().values().stream()
-            .flatMap(Collection::stream)
-            .filter(e -> !e.isGlobalRevocationKeyRevoked())
-            .collect(Collectors.toList());
-    try {
-      for (RevocationWDash wDash : wDashes) {
-        if (StringUtils.isNotBlank(wDash.getWDash())) {
-          for (CredentialRegistration existingRegistration : existingRegistrations) {
-            ByteArray credentialPublicKeyCoseKeyBytes = existingRegistration.getPublicKeyCose();
-            byte[] credentialPublicKeyRawEs256Bytes = CoseKeyExtractor.getRawUncompressedEs256Key(credentialPublicKeyCoseKeyBytes);
-            String credentialPublicKeyBase64UrlRawEs256Bytes = Base64.getUrlEncoder().withoutPadding().encodeToString(credentialPublicKeyRawEs256Bytes);
-            String vDash =
-                    hashTwoBase64UrlStrings(credentialPublicKeyBase64UrlRawEs256Bytes, wDash.getWDash());
-            if (StringUtils.compareIgnoreCase(existingRegistration.getGlobalRevocationV(), vDash) == 0) {
-              logger.debug("###################################################################");
-              // TODO: DEMO ONLY: Emoji added for conference presentation. Remove emoji before production release.
-              logger.debug("✅ Credential revoked");
-              logger.debug("v: {}", existingRegistration.getGlobalRevocationV());
-              logger.debug("v': {}", vDash);
-              logger.debug("w': {}", wDash.getWDash());
-              logger.debug("###################################################################");
-              foundKeysToBeRevoked.add(existingRegistration);
-            } else {
-              logger.debug("###################################################################");
-              // TODO: DEMO ONLY: Emoji added for conference presentation. Remove emoji before production release.
-              logger.debug("❌ Credential not revoked");
-              logger.debug("v: {}", existingRegistration.getGlobalRevocationV());
-              logger.debug("v': {}", vDash);
-              logger.debug("w': {}", wDash.getWDash());
-              logger.debug("###################################################################");
-            }
-          }
+    ////////////////////////////////////////////////////////////////////////////////
+    // The following methods are specific to this demo application.
+
+    @Override
+    public Optional<String> getUsernameForUserHandle(ByteArray userHandle) {
+        return getRegistrationsByUserHandle(userHandle).stream()
+                .findAny()
+                .map(CredentialRegistration::getUsername);
+    }
+
+    /// /////////////////////////////////////////////////////////////////////////////
+
+    public boolean addRegistrationByUsername(String username, CredentialRegistration reg) {
+        try {
+            return storage.get(username, HashSet::new).add(reg);
+        } catch (ExecutionException e) {
+            logger.error("Failed to add registration", e);
+            throw new RuntimeException(e);
         }
-      }
-
-      for (CredentialRegistration foundKey : foundKeysToBeRevoked) {
-        Set<CredentialRegistration> regs = storage.getIfPresent(foundKey.getUsername());
-        regs.remove(foundKey);
-        CredentialRegistration reg =
-                CredentialRegistration.builder()
-                        .userIdentity(foundKey.getUserIdentity())
-                        .credentialNickname(foundKey.getCredentialNickname())
-                        .registrationTime(foundKey.getRegistrationTime())
-                        .credential(foundKey.getCredential())
-                        .transports((SortedSet<AuthenticatorTransport>) foundKey.getTransports().orElse(null))
-                        .attestationMetadata(foundKey.getAttestationMetadata())
-                        .isGlobalRevocationKeyRevoked(true)
-                        .build();
-        regs.add(reg);
-        log.debug("User Credential revoked: {}", foundKey.getUsername());
-      }
-    }catch (IllegalArgumentException e) {
-      throw new RevocationInputException("Malformed COSE key or invalid parameter provided", e);
-    } catch (IllegalStateException | SecurityException e) {
-      throw new RevocationOperationException("Storage or security subsystem failed during revocation", e);
-    } catch (Exception e) {
-      throw new RevocationOperationException("Key revocation process failed unexpectedly", e);
     }
-  }
 
-  public List<RevocationWc> getAllCredentialRegistrationsWC() {
-    return storage.asMap().values().stream()
-            .flatMap(Collection::stream)
-            .filter(e -> !e.isGlobalRevocationKeyRevoked())
-            .map(cred -> new RevocationWc(
-                    cred.getGlobalRevocationW(),
-                    cred.getGlobalRevocationC()
-            ))
-            .collect(Collectors.toList());
-  }
+    public Collection<CredentialRegistration> getRegistrationsByUsername(String username) {
+        try {
+            return storage.get(username, HashSet::new);
+        } catch (ExecutionException e) {
+            logger.error("Registration lookup failed", e);
+            throw new RuntimeException(e);
+        }
+    }
 
-  /**
-   * Decodes two Base64URL strings, concatenates them, and calculates the SHA-256 hash.
-   *
-   * @param base64Url1 The first Base64URL encoded string
-   * @param base64Url2 The second Base64URL encoded string
-   * @return The SHA-256 hash as a raw byte array
-   */
-  public static String hashTwoBase64UrlStrings(String base64Url1, String base64Url2) throws NoSuchAlgorithmException {
+    public Set<CredentialRegistration> getRegistrationsByUserHandle(ByteArray userHandle) {
+        return storage.asMap().values().stream()
+                .flatMap(Collection::stream)
+                .filter(
+                        credentialRegistration ->
+                                userHandle.equals(credentialRegistration.getUserIdentity().getId()))
+                .collect(Collectors.toSet());
+    }
 
-    Base64.Decoder decoder = Base64.getUrlDecoder();
-    byte[] bytes1 = decoder.decode(base64Url1);
-    byte[] bytes2 = decoder.decode(base64Url2);
+    public void updateSignatureCount(AssertionResultV2<CredentialRegistration> result) {
+        CredentialRegistration registration =
+                getRegistrationByUsernameAndCredentialId(
+                        result.getCredential().getUsername(), result.getCredential().getCredentialId())
+                        .orElseThrow(
+                                () ->
+                                        new NoSuchElementException(
+                                                String.format(
+                                                        "Credential \"%s\" is not registered to user \"%s\"",
+                                                        result.getCredential().getCredentialId(),
+                                                        result.getCredential().getUsername())));
 
-    byte[] combinedBytes = new byte[bytes1.length + bytes2.length];
-    System.arraycopy(bytes1, 0, combinedBytes, 0, bytes1.length);
-    System.arraycopy(bytes2, 0, combinedBytes, bytes1.length, bytes2.length);
+        Set<CredentialRegistration> regs = storage.getIfPresent(result.getCredential().getUsername());
+        regs.remove(registration);
+        regs.add(
+                registration.withCredential(
+                        registration.getCredential().toBuilder()
+                                .signatureCount(result.getSignatureCount())
+                                .build()));
+    }
 
-    MessageDigest digest = MessageDigest.getInstance("SHA-256");
+    public Optional<CredentialRegistration> getRegistrationByUsernameAndCredentialId(
+            String username, ByteArray id) {
+        try {
+            return storage.get(username, HashSet::new).stream()
+                    .filter(credReg -> id.equals(credReg.getCredential().getCredentialId()))
+                    .findFirst();
+        } catch (ExecutionException e) {
+            logger.error("Registration lookup failed", e);
+            throw new RuntimeException(e);
+        }
+    }
 
-    byte[] result = digest.digest(combinedBytes);
-    return Base64.getUrlEncoder().withoutPadding().encodeToString(result);
-  }
+    public boolean removeRegistrationByUsername(
+            String username, CredentialRegistration credentialRegistration) {
+        try {
+            return storage.get(username, HashSet::new).remove(credentialRegistration);
+        } catch (ExecutionException e) {
+            logger.error("Failed to remove registration", e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    public boolean removeAllRegistrations(String username) {
+        storage.invalidate(username);
+        return true;
+    }
+
+    public boolean userExists(String username) {
+        return !getRegistrationsByUsername(username).isEmpty();
+    }
+
+    public boolean isGlobalRevocationKeyRevoked(String username) {
+        boolean result = false;
+        Collection<CredentialRegistration> registrationsByUsername = getRegistrationsByUsername(username);
+        if (!registrationsByUsername.isEmpty()) {
+            result = registrationsByUsername.stream().findAny()
+                    .map(CredentialRegistration::isGlobalRevocationKeyRevoked)
+                    .orElseGet(() -> false);
+            logger.debug("Global revocation: user: {}, isKeyRevoked: {}", username, result);
+        }
+        return result;
+    }
+
+    public void checkAndRevokeKeys(List<RevocationWDash> wDashes) {
+        List<CredentialRegistration> foundKeysToBeRevoked = new ArrayList<>();
+        List<CredentialRegistration> existingRegistrations = storage.asMap().values().stream()
+                .flatMap(Collection::stream)
+                .filter(e -> !e.isGlobalRevocationKeyRevoked())
+                .collect(Collectors.toList());
+        try {
+            for (RevocationWDash wDash : wDashes) {
+                if (StringUtils.isNotBlank(wDash.getWDash())) {
+                    for (CredentialRegistration existingRegistration : existingRegistrations) {
+                        ByteArray credentialPublicKeyCoseKeyBytes = existingRegistration.getPublicKeyCose();
+                        byte[] credentialPublicKeyRawEs256Bytes = CoseKeyExtractor.getRawUncompressedEs256Key(credentialPublicKeyCoseKeyBytes);
+                        String credentialPublicKeyBase64UrlRawEs256Bytes = Base64.getUrlEncoder().withoutPadding().encodeToString(credentialPublicKeyRawEs256Bytes);
+                        String vDash =
+                                hashTwoBase64UrlStrings(credentialPublicKeyBase64UrlRawEs256Bytes, wDash.getWDash());
+                        if (StringUtils.compareIgnoreCase(existingRegistration.getGlobalRevocationV(), vDash) == 0) {
+                            logger.debug("###################################################################");
+                            // TODO: DEMO ONLY: Emoji added for conference presentation. Remove emoji before production release.
+                            logger.debug("✅ Credential revoked");
+                            logger.debug("v: {}", existingRegistration.getGlobalRevocationV());
+                            logger.debug("v': {}", vDash);
+                            logger.debug("w': {}", wDash.getWDash());
+                            logger.debug("###################################################################");
+                            foundKeysToBeRevoked.add(existingRegistration);
+                        } else {
+                            logger.debug("###################################################################");
+                            // TODO: DEMO ONLY: Emoji added for conference presentation. Remove emoji before production release.
+                            logger.debug("❌ Credential not revoked");
+                            logger.debug("v: {}", existingRegistration.getGlobalRevocationV());
+                            logger.debug("v': {}", vDash);
+                            logger.debug("w': {}", wDash.getWDash());
+                            logger.debug("###################################################################");
+                        }
+                    }
+                }
+            }
+
+            for (CredentialRegistration foundKey : foundKeysToBeRevoked) {
+                Set<CredentialRegistration> regs = storage.getIfPresent(foundKey.getUsername());
+                regs.remove(foundKey);
+                CredentialRegistration reg =
+                        CredentialRegistration.builder()
+                                .userIdentity(foundKey.getUserIdentity())
+                                .credentialNickname(foundKey.getCredentialNickname())
+                                .registrationTime(foundKey.getRegistrationTime())
+                                .credential(foundKey.getCredential())
+                                .transports((SortedSet<AuthenticatorTransport>) foundKey.getTransports().orElse(null))
+                                .attestationMetadata(foundKey.getAttestationMetadata())
+                                .isGlobalRevocationKeyRevoked(true)
+                                .build();
+                regs.add(reg);
+                log.debug("User Credential revoked: {}", foundKey.getUsername());
+            }
+        } catch (IllegalArgumentException e) {
+            throw new RevocationInputException("Malformed COSE key or invalid parameter provided", e);
+        } catch (IllegalStateException | SecurityException e) {
+            throw new RevocationOperationException("Storage or security subsystem failed during revocation", e);
+        } catch (Exception e) {
+            throw new RevocationOperationException("Key revocation process failed unexpectedly", e);
+        }
+    }
+
+    public List<RevocationWc> getAllCredentialRegistrationsWC() {
+        return storage.asMap().values().stream()
+                .flatMap(Collection::stream)
+                .filter(e -> !e.isGlobalRevocationKeyRevoked())
+                .map(cred -> new RevocationWc(
+                        cred.getGlobalRevocationW(),
+                        cred.getGlobalRevocationC()
+                ))
+                .collect(Collectors.toList());
+    }
 
 
 }

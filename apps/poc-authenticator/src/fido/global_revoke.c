@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2024-2025, N. "Gavi" Pistolwala
+ * All rights reserved.
+ *
+ * This source code is licensed under the same terms as the rest of the
+ * original project, found in the LICENSE file in the root directory.
+ */
+
 #define MBEDTLS_ALLOW_PRIVATE_ACCESS
 
 #include "global_revoke.h"

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025, Nirav Pistolwala
+ * Copyright (c) 2024-2025, N. "Gavi" Pistolwala
  * All rights reserved.
  *
  * New features and modifications in this project are licensed under the same
@@ -42,21 +42,21 @@ import java.util.Set;
 
 public class App extends Application {
 
-  private final Set<Class<?>> classes = new HashSet<>();
-  private final Set<Object> singletons = new HashSet<>();
+    private final Set<Class<?>> classes = new HashSet<>();
+    private final Set<Object> singletons = new HashSet<>();
 
-  public App(WebAuthnServer webAuthnServer) {
-    classes.add(WebAuthnRestResource.class);
-    singletons.add(new WebAuthnRestResource(webAuthnServer));
-  }
+    public App(WebAuthnServer webAuthnServer) {
+        classes.add(WebAuthnRestResource.class);
+        singletons.add(new WebAuthnRestResource(webAuthnServer));
+    }
 
-  @Override
-  public Set<Class<?>> getClasses() {
-    return new HashSet<>(Collections.singletonList(CorsFilter.class));
-  }
+    @Override
+    public Set<Class<?>> getClasses() {
+        return new HashSet<>(Collections.singletonList(CorsFilter.class));
+    }
 
-  @Override
-  public Set<Object> getSingletons() {
-    return singletons;
-  }
+    @Override
+    public Set<Object> getSingletons() {
+        return singletons;
+    }
 }

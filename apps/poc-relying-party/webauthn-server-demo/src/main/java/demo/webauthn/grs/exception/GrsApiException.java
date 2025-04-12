@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025, Nirav Pistolwala
+ * Copyright (c) 2024-2025, N. "Gavi" Pistolwala
  * All rights reserved.
  *
  * This source code is licensed under the same terms as the rest of the
@@ -19,9 +19,10 @@ public class GrsApiException extends RuntimeException {
     /**
      * Master constructor for API errors.
      * * @param message A descriptive error message.
-     * @param statusCode The HTTP status code, or -1 if the failure happened before a response was received.
+     *
+     * @param statusCode   The HTTP status code, or -1 if the failure happened before a response was received.
      * @param responseBody The raw JSON string returned by the server, or null if unreadable/absent.
-     * @param cause The underlying exception (e.g., IOException), or null if purely an HTTP error.
+     * @param cause        The underlying exception (e.g., IOException), or null if purely an HTTP error.
      */
     public GrsApiException(String message, int statusCode, String responseBody, Throwable cause) {
         super(message, cause);

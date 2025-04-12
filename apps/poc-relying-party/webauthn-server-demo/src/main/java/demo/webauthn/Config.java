@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024-2025, Nirav Pistolwala
+ * Copyright (c) 2024-2025, N. "Gavi" Pistolwala
  * All rights reserved.
  *
  * New features and modifications in this project are licensed under the same
@@ -34,113 +34,113 @@ package demo.webauthn;
 
 import com.yubico.internal.util.CollectionUtil;
 import com.yubico.webauthn.data.RelyingPartyIdentity;
+
 import java.net.MalformedURLException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Config {
 
-  private static final Logger logger = LoggerFactory.getLogger(Config.class);
+    private static final Logger logger = LoggerFactory.getLogger(Config.class);
 
-  private static final String DEFAULT_ORIGIN = "https://localhost:8443";
-  private static final int DEFAULT_PORT = 8443;
-  private static final RelyingPartyIdentity DEFAULT_RP_ID =
-          RelyingPartyIdentity.builder().id("localhost").name("Global revocation demo").build();
+    private static final String DEFAULT_ORIGIN = "https://localhost:8443";
+    private static final int DEFAULT_PORT = 8443;
+    private static final RelyingPartyIdentity DEFAULT_RP_ID =
+            RelyingPartyIdentity.builder().id("localhost").name("Global revocation demo").build();
+    private static Config instance;
+    private final Set<String> origins;
+    private final int port;
+    private final RelyingPartyIdentity rpIdentity;
 
-  private final Set<String> origins;
-  private final int port;
-  private final RelyingPartyIdentity rpIdentity;
-
-  private Config(Set<String> origins, int port, RelyingPartyIdentity rpIdentity) {
-    this.origins = CollectionUtil.immutableSet(origins);
-    this.port = port;
-    this.rpIdentity = rpIdentity;
-  }
-
-  private static Config instance;
-
-  private static Config getInstance() {
-    if (instance == null) {
-      try {
-        instance = new Config(computeOrigins(), computePort(), computeRpIdentity());
-      } catch (MalformedURLException e) {
-        throw new RuntimeException(e);
-      }
-    }
-    return instance;
-  }
-
-  public static Set<String> getOrigins() {
-    return getInstance().origins;
-  }
-
-  public static int getPort() {
-    return getInstance().port;
-  }
-
-  public static RelyingPartyIdentity getRpIdentity() {
-    return getInstance().rpIdentity;
-  }
-
-  public static boolean useFidoMds() {
-    return "true".equalsIgnoreCase(System.getenv("YUBICO_WEBAUTHN_USE_FIDO_MDS"));
-  }
-
-  private static Set<String> computeOrigins() {
-    final String origins = System.getenv("YUBICO_WEBAUTHN_ALLOWED_ORIGINS");
-
-    logger.debug("YUBICO_WEBAUTHN_ALLOWED_ORIGINS: {}", origins);
-
-    final Set<String> result;
-
-    if (origins == null) {
-      result = Collections.singleton(DEFAULT_ORIGIN);
-    } else {
-      result = new HashSet<>(Arrays.asList(origins.split(",")));
+    private Config(Set<String> origins, int port, RelyingPartyIdentity rpIdentity) {
+        this.origins = CollectionUtil.immutableSet(origins);
+        this.port = port;
+        this.rpIdentity = rpIdentity;
     }
 
-    logger.info("Origins: {}", result);
-
-    return result;
-  }
-
-  private static int computePort() {
-    final String port = System.getenv("YUBICO_WEBAUTHN_PORT");
-
-    if (port == null) {
-      return DEFAULT_PORT;
-    } else {
-      return Integer.parseInt(port);
-    }
-  }
-
-  private static RelyingPartyIdentity computeRpIdentity() throws MalformedURLException {
-    final String name = System.getenv("YUBICO_WEBAUTHN_RP_NAME");
-    final String id = System.getenv("YUBICO_WEBAUTHN_RP_ID");
-
-    logger.debug("RP name: {}", name);
-    logger.debug("RP ID: {}", id);
-
-    RelyingPartyIdentity.RelyingPartyIdentityBuilder resultBuilder = DEFAULT_RP_ID.toBuilder();
-
-    if (name == null) {
-      logger.debug("RP name not given - using default.");
-    } else {
-      resultBuilder.name(name);
+    private static Config getInstance() {
+        if (instance == null) {
+            try {
+                instance = new Config(computeOrigins(), computePort(), computeRpIdentity());
+            } catch (MalformedURLException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return instance;
     }
 
-    if (id == null) {
-      logger.debug("RP ID not given - using default.");
-    } else {
-      resultBuilder.id(id);
+    public static Set<String> getOrigins() {
+        return getInstance().origins;
     }
 
-    final RelyingPartyIdentity result = resultBuilder.build();
-    logger.info("RP identity: {}", result);
-    return result;
-  }
+    public static int getPort() {
+        return getInstance().port;
+    }
+
+    public static RelyingPartyIdentity getRpIdentity() {
+        return getInstance().rpIdentity;
+    }
+
+    public static boolean useFidoMds() {
+        return "true".equalsIgnoreCase(System.getenv("YUBICO_WEBAUTHN_USE_FIDO_MDS"));
+    }
+
+    private static Set<String> computeOrigins() {
+        final String origins = System.getenv("YUBICO_WEBAUTHN_ALLOWED_ORIGINS");
+
+        logger.debug("YUBICO_WEBAUTHN_ALLOWED_ORIGINS: {}", origins);
+
+        final Set<String> result;
+
+        if (origins == null) {
+            result = Collections.singleton(DEFAULT_ORIGIN);
+        } else {
+            result = new HashSet<>(Arrays.asList(origins.split(",")));
+        }
+
+        logger.info("Origins: {}", result);
+
+        return result;
+    }
+
+    private static int computePort() {
+        final String port = System.getenv("YUBICO_WEBAUTHN_PORT");
+
+        if (port == null) {
+            return DEFAULT_PORT;
+        } else {
+            return Integer.parseInt(port);
+        }
+    }
+
+    private static RelyingPartyIdentity computeRpIdentity() throws MalformedURLException {
+        final String name = System.getenv("YUBICO_WEBAUTHN_RP_NAME");
+        final String id = System.getenv("YUBICO_WEBAUTHN_RP_ID");
+
+        logger.debug("RP name: {}", name);
+        logger.debug("RP ID: {}", id);
+
+        RelyingPartyIdentity.RelyingPartyIdentityBuilder resultBuilder = DEFAULT_RP_ID.toBuilder();
+
+        if (name == null) {
+            logger.debug("RP name not given - using default.");
+        } else {
+            resultBuilder.name(name);
+        }
+
+        if (id == null) {
+            logger.debug("RP ID not given - using default.");
+        } else {
+            resultBuilder.id(id);
+        }
+
+        final RelyingPartyIdentity result = resultBuilder.build();
+        logger.info("RP identity: {}", result);
+        return result;
+    }
 }
