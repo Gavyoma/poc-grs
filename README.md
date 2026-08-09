@@ -1,8 +1,8 @@
 # Secure and Privacy-Preserving Global Revocation for FIDO2-Based Systems
 
 This repository contains the proof-of-concept implementation of global revocation for FIDO2 authenticator. It provides
-supplementary material for our research paper, "Secure and Privacy-Preserving Global Revocation for FIDO2-based
-Systems."
+supplementary material for [our research paper at ARES conference](https://doi.org/10.1007/978-3-032-35576-8_31),
+"Secure and Privacy-Preserving Global Revocation for FIDO2-based Systems."
 
 In this repository, we show how our concept can be implemented across all parts of the FIDO2 stack: on the authenticator
 (hardware token), on the relying party server, and as an integration with the Global Revocation server.
@@ -11,12 +11,16 @@ In this repository, we show how our concept can be implemented across all parts 
 > The names used in this repository correspond to the terminology in our research paper. We recommend reading the
 research paper to fully understand the underlying concepts.
 
-Watch our proof-of-concept demo:
+- Read the [full paper](https://doi.org/10.1007/978-3-032-35576-8_31)
+- Watch our [talk](https://grs-video.gavyoma.com)
 
-<video src="https://npcraft.com/videos/demo-proof-of-concept.mp4" controls="controls" width="600">
-</video>
+## Demo Video
 
-# Implementations
+Click the GIF below to watch the [full talk:](https://grs-video.gavyoma.com)
+
+<a href="https://grs-video.gavyoma.com"><img width="500px" src="docs/images/demo-proof-of-concept.gif"></img></a>
+
+## Implementations
 
 Following components are part of the proof-of-concept demo.
 
@@ -26,7 +30,7 @@ Following components are part of the proof-of-concept demo.
 | [poc-global-revocation-server](apps/poc-global-revocation-server) | Global Revocation Server for FIDO2           | 
 | [poc-relying-party](apps/poc-relying-party)                       | FIDO2 Relying Party                          |
 
-# Authenticator: Raspberry Pi Pico RP2040 Microcontroller
+## Authenticator: Raspberry Pi Pico RP2040 Microcontroller
 
 Our demo FIDO2 authenticator is built on a Raspberry Pi Pico (RP2040) with an attached display, which shows the Global
 Revocation Key as a QR code. See the [README.md](apps/poc-authenticator/README.md) file in
@@ -40,7 +44,7 @@ the [poc-authenticator](apps/poc-authenticator) directory for instructions on bu
   <img src="apps/poc-authenticator/docs/images/pico-with-display.webp" alt="Photo showing Raspberry Pi Pico RP2040 as FIDO2 Authenticator with Global Revocation Display" width="700">
 </details>
 
-# Global Revocation Server for FIDO2: Java Web App
+## Global Revocation Server for FIDO2: Java Web App
 
 Our demo Global Revocation Server is a Java web application. For instructions on building and running the web app, see
 the [README.md](apps/poc-global-revocation-server/README.md) file in
@@ -75,7 +79,7 @@ the [adr](apps/poc-global-revocation-server/docs/adr) directory.
 
 </details>
 
-# Relying Party: Java Web App
+## Relying Party: Java Web App
 
 Our demo Relying Party web application is a Java web application. See the [README](apps/poc-relying-party/README) file
 in the [poc-relying-party](apps/poc-relying-party) directory for more information on how to set up and run the web app.
@@ -96,15 +100,15 @@ in the [poc-relying-party](apps/poc-relying-party) directory for more informatio
    <img src="apps/poc-relying-party/doc/images/revoked-page.webp" alt="Screenshot showing Relying Party – Authenticator Already Revoked" width="800">
 </details>
 
-# Concept Overview
+## Concept Overview
 
 <img src="docs/images/concept-overview.png" alt="Concept Overview" width="600">
 
-# Global revocation extension process during FIDO2 registration
+## Global revocation extension process during FIDO2 registration
 
 <img src="docs/images/extension-process.png" alt="Extension Process" width="600">
 
-# Revocation information
+## Revocation information
 
 > [!NOTE]
 > Randomly generated Revocation information for each FIDO2 registration
@@ -122,7 +126,7 @@ The following table shows how revocation information is generated.
 
 * Key Encapsulation Mechanism (KEM)
 
-# Knowledge scope
+## Knowledge scope
 
 The following table shows the knowledge scope of each component. This is by design: each component knows only a specific
 part of the revocation information.
@@ -132,6 +136,20 @@ part of the revocation information.
 | Authenticator | (pk_revoc, sk_revoc), (pk_cred, sk_cred), (v, w, c) |
 | RP            | pk_cred, (v, w, c)                                  |
 | GRS           | pk_revoc, (w, c)                                    |
+
+## Read Our Paper
+
+We hope this repository is useful for other researchers. Please cite this paper in your publications which include a
+bibliography:
+
+Pistolwala, N., Ebinger, P. Secure and Privacy-Preserving Global Revocation for FIDO2-Based Systems. In: Availability,
+Reliability and Security. Lecture Notes in Computer Science, vol 16900. Springer,
+Cham. https://doi.org/10.1007/978-3-032-35576-8_31
+
+## Authors
+
+- Nirav (Gavi) Pistolwala ([ORCID](https://orcid.org/0009-0008-5316-0020), [URL](https://gavyoma.com/))
+- Peter Ebinger ([ORCID](https://orcid.org/0009-0002-0108-1802))
 
 ## Licensing and Attributions
 
